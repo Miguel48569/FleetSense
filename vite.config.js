@@ -1,0 +1,22 @@
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import path from "path";
+
+export default defineConfig({
+  logLevel: "error", // só mostra erros, suprime warnings
+  plugins: [react()],
+  server: {
+    host: "0.0.0.0",
+    port: 3000,
+    allowedHosts: true,
+  },
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+      "@components": path.resolve(__dirname, "./src/components"),
+      "@utils": path.resolve(__dirname, "./src/utils"),
+      "@hooks": path.resolve(__dirname, "./src/hooks"),
+      "@lib": path.resolve(__dirname, "./src/lib"),
+    },
+  },
+});
