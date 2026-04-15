@@ -29,7 +29,7 @@ export default function VehicleTable({ vehicles, onDelete }) {
         <CardTitle className="text-base font-semibold">Veículos Cadastrados ({vehicles.length})</CardTitle>
       </CardHeader>
       <CardContent className="p-0">
-        <Table>
+        <Table className="min-w-[680px]">
           <TableHeader>
             <TableRow>
               <TableHead>Placa</TableHead>

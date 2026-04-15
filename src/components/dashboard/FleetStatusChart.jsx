@@ -43,16 +43,16 @@ export default function FleetStatusChart({ vehicles }) {
       <CardHeader>
         <CardTitle className="text-base font-semibold">Status da Frota</CardTitle>
       </CardHeader>
-      <CardContent>
-        <ResponsiveContainer width="100%" height={280}>
+      <CardContent className="px-3 pb-3 sm:px-6 sm:pb-6">
+        <ResponsiveContainer width="100%" height={240}>
           <PieChart>
-            <Pie data={data} cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={4} dataKey="value">
+            <Pie data={data} cx="50%" cy="50%" innerRadius={44} outerRadius={82} paddingAngle={4} dataKey="value">
               {data.map((entry, index) => (
                 <Cell key={index} fill={entry.color} />
               ))}
             </Pie>
             <Tooltip formatter={(value) => [value, 'Veículos']} />
-            <Legend />
+            <Legend wrapperStyle={{ fontSize: 12 }} />
           </PieChart>
         </ResponsiveContainer>
       </CardContent>

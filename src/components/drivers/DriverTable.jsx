@@ -25,7 +25,7 @@ export default function DriverTable({ drivers, vehicles, onDelete }) {
         <CardTitle className="text-base font-semibold">Motoristas Cadastrados ({drivers.length})</CardTitle>
       </CardHeader>
       <CardContent className="p-0">
-        <Table>
+        <Table className="min-w-[700px]">
           <TableHeader>
             <TableRow>
               <TableHead>Nome</TableHead>

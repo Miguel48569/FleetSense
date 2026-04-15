@@ -42,9 +42,9 @@ export default function Vehicles() {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Veículos</h1>
+        <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Veículos</h1>
         <p className="text-muted-foreground mt-1">
           Cadastre e gerencie os veículos da frota
         </p>

@@ -45,10 +45,18 @@ export default function Chat() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  const buildMessage = (role, content) => ({
+    id: window.crypto?.randomUUID
+      ? window.crypto.randomUUID()
+      : `${role}-${Date.now()}-${Math.random()}`,
+    role,
+    content,
+  });
+
   const sendMessage = async (text) => {
     if (!text.trim()) return;
 
-    const userMsg = { role: "user", content: text };
+    const userMsg = buildMessage("user", text);
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setLoading(true);
@@ -68,17 +76,14 @@ export default function Chat() {
         history: messages.slice(-10), // últimas 10 mensagens como histórico
       });
 
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: result.reply },
-      ]);
+      setMessages((prev) => [...prev, buildMessage("assistant", result.reply)]);
     } catch (err) {
       setMessages((prev) => [
         ...prev,
-        {
-          role: "assistant",
-          content: `**Erro ao conectar com a IA:** ${err.message}\n\nVerifique se o backend está rodando e a variável \`VITE_API_URL\` está configurada no arquivo \`.env\`.`,
-        },
+        buildMessage(
+          "assistant",
+          `**Erro ao conectar com a IA:** ${err.message}\n\nVerifique se o backend está rodando e a variável \`VITE_API_URL\` está configurada no arquivo \`.env\`.`
+        ),
       ]);
     } finally {
       setLoading(false);
@@ -86,32 +91,32 @@ export default function Chat() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)]">
+    <div className="flex h-full min-h-[70vh] flex-col">
       <div className="mb-4">
-        <h1 className="text-2xl font-bold tracking-tight">Chat com IA</h1>
+        <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Chat com IA</h1>
         <p className="text-muted-foreground mt-1">
           Faça perguntas sobre sua frota em linguagem natural
         </p>
       </div>
 
       <Card className="flex-1 border-0 shadow-sm flex flex-col overflow-hidden">
-        <CardContent className="flex-1 overflow-y-auto p-6 space-y-4">
+        <CardContent className="flex-1 overflow-y-auto space-y-4 p-3 sm:p-6">
           {messages.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-center">
-              <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
-                <Bot className="w-8 h-8 text-primary" />
+              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 sm:h-16 sm:w-16">
+                <Bot className="h-7 w-7 text-primary sm:h-8 sm:w-8" />
               </div>
               <h3 className="text-lg font-semibold mb-2">Assistente de Frota</h3>
-              <p className="text-sm text-muted-foreground mb-6 max-w-md">
+              <p className="mb-6 max-w-md text-sm text-muted-foreground">
                 Pergunte qualquer coisa sobre seus veículos, motoristas, viagens
                 e custos.
               </p>
-              <div className="flex flex-wrap gap-2 justify-center max-w-lg">
-                {SUGGESTIONS.map((s, i) => (
+              <div className="flex max-w-lg flex-wrap justify-center gap-2">
+                {SUGGESTIONS.map((s) => (
                   <button
-                    key={i}
+                    key={s}
                     onClick={() => sendMessage(s)}
-                    className="text-xs px-3 py-2 rounded-full border border-border hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                    className="rounded-full border border-border px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                   >
                     {s}
                   </button>
@@ -120,9 +125,9 @@ export default function Chat() {
             </div>
           )}
 
-          {messages.map((msg, i) => (
+          {messages.map((msg) => (
             <div
-              key={i}
+              key={msg.id}
               className={`flex gap-3 ${
                 msg.role === "user" ? "justify-end" : "justify-start"
               }`}
@@ -133,7 +138,7 @@ export default function Chat() {
                 </div>
               )}
               <div
-                className={`max-w-[75%] rounded-2xl px-4 py-3 ${
+                className={`max-w-[90%] rounded-2xl px-4 py-3 sm:max-w-[75%] ${
                   msg.role === "user"
                     ? "bg-primary text-primary-foreground"
                     : "bg-muted"
@@ -142,7 +147,7 @@ export default function Chat() {
                 {msg.role === "user" ? (
                   <p className="text-sm">{msg.content}</p>
                 ) : (
-                  <ReactMarkdown className="text-sm prose prose-sm max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+                  <ReactMarkdown className="prose prose-sm max-w-none break-words text-sm [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
                     {msg.content}
                   </ReactMarkdown>
                 )}
@@ -168,13 +173,13 @@ export default function Chat() {
           <div ref={bottomRef} />
         </CardContent>
 
-        <div className="p-4 border-t">
+        <div className="border-t p-3 sm:p-4">
           <form
             onSubmit={(e) => {
               e.preventDefault();
               sendMessage(input);
             }}
-            className="flex gap-3"
+            className="flex gap-2 sm:gap-3"
           >
             <Input
               value={input}
@@ -183,7 +188,7 @@ export default function Chat() {
               className="flex-1"
               disabled={loading}
             />
-            <Button type="submit" disabled={loading || !input.trim()}>
+            <Button type="submit" disabled={loading || !input.trim()} className="h-10 w-10 shrink-0">
               <Send className="w-4 h-4" />
             </Button>
           </form>

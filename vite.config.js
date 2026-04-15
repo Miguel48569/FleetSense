@@ -3,7 +3,7 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 
 export default defineConfig({
-  logLevel: "error", // só mostra erros, suprime warnings
+  
   plugins: [react()],
   server: {
     host: "0.0.0.0",

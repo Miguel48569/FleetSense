@@ -39,7 +39,7 @@ export default function FuelConsumption({ trips, vehicles }) {
         {rows.length === 0 ? (
           <p className="text-sm text-muted-foreground p-6">Nenhum dado disponível.</p>
         ) : (
-          <Table>
+          <Table className="min-w-[760px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Veículo</TableHead>
@@ -51,8 +51,8 @@ export default function FuelConsumption({ trips, vehicles }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.map((r, i) => (
-                <TableRow key={i}>
+              {rows.map((r) => (
+                <TableRow key={`${r.plate}-${r.model}`}>
                   <TableCell className="font-medium">{r.plate} <span className="text-muted-foreground font-normal">- {r.model}</span></TableCell>
                   <TableCell>{r.count}</TableCell>
                   <TableCell>{r.totalKm.toFixed(1)} km</TableCell>

@@ -73,8 +73,8 @@ export default function TripForm({ onSubmit, vehicles, drivers }) {
             <Label className="text-xs font-medium">Data</Label>
             <Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} required />
           </div>
-          <div className="lg:col-span-4 flex justify-end">
-            <Button type="submit" disabled={loading}>
+          <div className="flex justify-stretch sm:justify-end lg:col-span-4">
+            <Button type="submit" disabled={loading} className="w-full sm:w-auto">
               <Plus className="w-4 h-4 mr-2" />
               Registrar Viagem
             </Button>

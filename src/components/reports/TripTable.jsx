@@ -30,10 +30,10 @@ export default function TripTable({ trips, vehicles, drivers, onDelete }) {
 
   return (
     <Card className="border-0 shadow-sm overflow-hidden">
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <CardTitle className="text-base font-semibold">Viagens Registradas ({trips.length})</CardTitle>
         {trips.length > 0 && (
-          <Button variant="outline" size="sm" onClick={exportCSV}>
+          <Button variant="outline" size="sm" onClick={exportCSV} className="w-full sm:w-auto">
             <Download className="w-4 h-4 mr-2" />
             Exportar CSV
           </Button>
@@ -43,7 +43,7 @@ export default function TripTable({ trips, vehicles, drivers, onDelete }) {
         {trips.length === 0 ? (
           <p className="text-sm text-muted-foreground p-6">Nenhuma viagem registrada.</p>
         ) : (
-          <Table>
+          <Table className="min-w-[980px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Data</TableHead>

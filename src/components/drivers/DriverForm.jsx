@@ -65,7 +65,7 @@ export default function DriverForm({ onSubmit, vehicles }) {
               </SelectContent>
             </Select>
           </div>
-          <Button type="submit" disabled={loading} className="h-10">
+          <Button type="submit" disabled={loading} className="h-10 w-full md:w-auto">
             <Plus className="w-4 h-4 mr-2" />
             Salvar
           </Button>

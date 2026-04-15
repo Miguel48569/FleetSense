@@ -31,13 +31,13 @@ export default function Dashboard() {
   const totalTrips = trips.length;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5 sm:space-y-6 lg:space-y-8">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+        <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Dashboard</h1>
         <p className="text-muted-foreground mt-1">Visão geral da sua frota</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
+      <div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-4 xl:gap-5">
         <StatCard
           title="Veículos"
           value={vehicles.length}
@@ -68,7 +68,7 @@ export default function Dashboard() {
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-2 lg:gap-5">
         <CostChart trips={trips} />
         <FleetStatusChart vehicles={vehicles} />
       </div>

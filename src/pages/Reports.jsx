@@ -57,9 +57,9 @@ export default function Reports() {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Relatórios</h1>
+        <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Relatórios</h1>
         <p className="text-muted-foreground mt-1">
           Viagens, consumo e custos da frota
         </p>

@@ -49,9 +49,9 @@ export default function Drivers() {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Motoristas</h1>
+        <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Motoristas</h1>
         <p className="text-muted-foreground mt-1">
           Cadastre motoristas e associe a veículos
         </p>
