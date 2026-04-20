@@ -1,6 +1,6 @@
 // Projeto SENAC 2026 - FleetSense
 import React, { useState } from "react";
-import { Menu, Truck, LayoutDashboard, Car, Users, FileBarChart2, MessageSquare } from "lucide-react";
+import { Menu, Truck, LayoutDashboard, Car, Users, FileBarChart2, MessageSquare, Wrench } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ const mobileNavItems = [
   { to: "/", label: "Início", icon: LayoutDashboard, end: true },
   { to: "/veiculos", label: "Veículos", icon: Car },
   { to: "/motoristas", label: "Motoristas", icon: Users },
+  { to: "/manutencao", label: "Manutenção", icon: Wrench },
   { to: "/relatorios", label: "Relatórios", icon: FileBarChart2 },
   { to: "/chat", label: "Chat", icon: MessageSquare },
 ];
@@ -59,7 +60,7 @@ export default function AppLayout() {
 
         {isMobile && (
           <nav className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 px-1 pb-[calc(env(safe-area-inset-bottom)+0.35rem)] pt-1 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-            <div className="mx-auto grid max-w-xl grid-cols-5 gap-1">
+            <div className="mx-auto grid max-w-xl grid-cols-6 gap-1">
               {mobileNavItems.map(({ to, label, icon: Icon, end }) => (
                 <NavLink
                   key={to}
