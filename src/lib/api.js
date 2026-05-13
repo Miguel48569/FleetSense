@@ -6,7 +6,8 @@
  * CONFIGURAÇÃO:
  *   - Defina a variável de ambiente VITE_API_URL no arquivo .env
  *     para apontar para o seu backend (ex: http://localhost:8000/api)
- *   - Se existir `access_token` nos app params, as requisições enviam
+ *   - Se existir `token` (derivado de `access_token`) nos app params,
+ *     as requisições enviam
  *     o header `Authorization: Bearer <token>`
  *   - Se VITE_API_URL não estiver definida, o sistema usa
  *     armazenamento LOCAL (localStorage) como fallback,
