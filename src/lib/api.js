@@ -6,6 +6,8 @@
  * CONFIGURAÇÃO:
  *   - Defina a variável de ambiente VITE_API_URL no arquivo .env
  *     para apontar para o seu backend (ex: http://localhost:8000/api)
+ *   - Se existir `access_token` nos app params, as requisições enviam
+ *     o header `Authorization: Bearer <token>`
  *   - Se VITE_API_URL não estiver definida, o sistema usa
  *     armazenamento LOCAL (localStorage) como fallback,
  *     permitindo que o frontend funcione sem backend.
@@ -14,6 +16,8 @@
  *   Todas as rotas esperadas estão documentadas em BACKEND_ROUTES.md
  *   na raiz do projeto.
  */
+
+import { appParams } from "./app-params";
 
 const BASE_URL = import.meta.env.VITE_API_URL || null;
 
@@ -36,9 +40,19 @@ const localDB = {
 
 async function apiFetch(method, path, body = null) {
   const url = `${BASE_URL}${path}`;
+  const token = appParams.token;
   const options = {
     method,
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(token
+        ? {
+            Authorization: token.toLowerCase().startsWith("bearer ")
+              ? token
+              : `Bearer ${token}`,
+          }
+        : {}),
+    },
   };
   if (body) options.body = JSON.stringify(body);
 
