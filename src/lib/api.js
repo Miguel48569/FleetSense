@@ -38,20 +38,21 @@ const localDB = {
   },
 };
 
+const formatAuthHeader = (accessToken) => {
+  if (!accessToken) return null;
+  if (accessToken.toLowerCase().startsWith("bearer ")) return accessToken;
+  return `Bearer ${accessToken}`;
+};
+
 async function apiFetch(method, path, body = null) {
   const url = `${BASE_URL}${path}`;
-  const token = appParams.token;
+  const accessToken = appParams.token;
+  const authorizationHeader = formatAuthHeader(accessToken);
   const options = {
     method,
     headers: {
       "Content-Type": "application/json",
-      ...(token
-        ? {
-            Authorization: token.toLowerCase().startsWith("bearer ")
-              ? token
-              : `Bearer ${token}`,
-          }
-        : {}),
+      ...(authorizationHeader ? { Authorization: authorizationHeader } : {}),
     },
   };
   if (body) options.body = JSON.stringify(body);
