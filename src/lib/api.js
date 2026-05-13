@@ -6,9 +6,8 @@
  * CONFIGURAÇÃO:
  *   - Defina a variável de ambiente VITE_API_URL no arquivo .env
  *     para apontar para o seu backend (ex: http://localhost:8000/api)
- *   - Se existir `token` (derivado de `access_token`) nos app params,
- *     as requisições enviam
- *     o header `Authorization: Bearer <token>`
+ *   - Se existir `token` (derivado de `access_token`) nos app params, as
+ *     requisições enviam o header `Authorization: Bearer <token>`
  *   - Se VITE_API_URL não estiver definida, o sistema usa
  *     armazenamento LOCAL (localStorage) como fallback,
  *     permitindo que o frontend funcione sem backend.
@@ -41,8 +40,11 @@ const localDB = {
 
 const formatAuthHeader = (accessToken) => {
   if (!accessToken) return null;
-  if (accessToken.toLowerCase().startsWith("bearer ")) return accessToken;
-  return `Bearer ${accessToken}`;
+  if (typeof accessToken !== "string") return null;
+  const normalizedToken = accessToken.trim();
+  if (!normalizedToken) return null;
+  if (normalizedToken.toLowerCase().startsWith("bearer ")) return normalizedToken;
+  return `Bearer ${normalizedToken}`;
 };
 
 async function apiFetch(method, path, body = null) {
