@@ -15,7 +15,8 @@
  *   na raiz do projeto.
  */
 
-const BASE_URL = import.meta.env.VITE_API_URL || null;
+const BASE_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, "") || null;
+const AUTH_TOKEN_KEY = "fleetsense_auth_token";
 
 // ─── Utilitários ────────────────────────────────────────────
 
@@ -38,8 +39,17 @@ async function apiFetch(method, path, body = null) {
   const url = `${BASE_URL}${path}`;
   const options = {
     method,
-    headers: { "Content-Type": "application/json" },
+    mode: 'cors',
+    credentials: 'omit',
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+    },
   };
+  const token = localStorage.getItem(AUTH_TOKEN_KEY);
+  if (token) {
+    options.headers.Authorization = `Bearer ${token}`;
+  }
   if (body) options.body = JSON.stringify(body);
 
   const res = await fetch(url, options);
@@ -53,6 +63,25 @@ async function apiFetch(method, path, body = null) {
 // ─── Modo: Backend Real vs Local ────────────────────────────
 
 const isBackendMode = () => !!BASE_URL;
+
+export const authApi = {
+  login: async (email, senha) => {
+    if (!isBackendMode()) return null;
+    return apiFetch("POST", "/login", { email, senha });
+  },
+
+  createUser: async (data) => {
+    if (!isBackendMode()) return null;
+    const response = await apiFetch("POST", "/usuarios", data);
+    // O backend pode retornar o usuário diretamente ou dentro de data
+    return response.data || response;
+  },
+};
+
+export function setAuthToken(token) {
+  if (token) localStorage.setItem(AUTH_TOKEN_KEY, token);
+  else localStorage.removeItem(AUTH_TOKEN_KEY);
+}
 
 // ============================================================
 // VEÍCULOS

@@ -1,9 +1,39 @@
 /* eslint-disable react/prop-types */
 import React, { createContext, useState, useContext, useEffect, useMemo } from "react";
+import { authApi, setAuthToken } from "@/lib/api";
 
 const AuthContext = createContext();
 const AUTH_USERS_KEY = "fleetsense_auth_users";
 const AUTH_SESSION_KEY = "fleetsense_auth_session";
+
+const hasBackend = Boolean(import.meta.env.VITE_API_URL);
+
+function normalizeEmail(value) {
+  return `${value ?? ""}`.trim().toLowerCase();
+}
+
+function normalizeName(value) {
+  return `${value ?? ""}`.trim() || "Usuário";
+}
+
+function normalizeUserRecord(user = {}) {
+  const id = user.idUsuario ?? user.usuarioId ?? user.user_id ?? user.id ?? user._id ?? null;
+
+  return {
+    id: id != null ? `${id}` : `user_${Date.now()}`,
+    name: normalizeName(user.nome ?? user.name ?? user.usuario),
+    email: normalizeEmail(user.email),
+    password: `${user.senha ?? user.password ?? ""}`,
+  };
+}
+
+function toSessionUser(user) {
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+  };
+}
 
 function getStoredUsers() {
   try {
@@ -67,10 +97,37 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const register = ({ name, email, password }) => {
+  const register = async ({ name, email, password, matricula, cargo }) => {
+    const normalizedEmail = normalizeEmail(email);
+    const normalizedName = normalizeName(name);
+
+    if (!normalizedName || !normalizedEmail || !password || !matricula || !cargo) {
+      throw new Error("Preencha todos os campos obrigatórios.");
+    }
+
+    if (hasBackend) {
+      const createdUser = await authApi.createUser({
+        nome: normalizedName,
+        email: normalizedEmail,
+        senha: password,
+        matricula,
+        cargo,
+      });
+
+      const normalizedUser = normalizeUserRecord(
+        createdUser || { nome: normalizedName, email: normalizedEmail, senha: password, matricula, cargo }
+      );
+      const sessionUser = toSessionUser(normalizedUser);
+
+      setStoredSession(sessionUser);
+      setUser(sessionUser);
+      setIsAuthenticated(true);
+      setAuthError(null);
+      return sessionUser;
+    }
+
     const users = getStoredUsers();
-    const normalizedEmail = (email || "").trim().toLowerCase();
-    const alreadyExists = users.some((item) => item.email.toLowerCase() === normalizedEmail);
+    const alreadyExists = users.some((item) => normalizeEmail(item.email) === normalizedEmail);
 
     if (alreadyExists) {
       throw new Error("Este e-mail já está cadastrado.");
@@ -78,7 +135,7 @@ export const AuthProvider = ({ children }) => {
 
     const newUser = {
       id: `user_${Date.now()}`,
-      name: name?.trim() || "Usuário",
+      name: normalizedName,
       email: normalizedEmail,
       password,
       created_at: new Date().toISOString(),
@@ -99,11 +156,37 @@ export const AuthProvider = ({ children }) => {
     return sessionUser;
   };
 
-  const login = ({ email, password }) => {
+  const login = async ({ email, password }) => {
+    const normalizedEmail = normalizeEmail(email);
+
+    if (hasBackend) {
+      try {
+        const response = await authApi.login(normalizedEmail, password);
+
+        // Tenta extrair token em formatos comuns
+        const token =
+          response?.token || response?.access_token || response?.auth_token || response?.accessToken || response?.data?.token;
+        if (token) setAuthToken(token);
+
+        // Extrai o objeto de usuário em formatos comuns
+        const userPayload = response?.user || response?.usuario || response?.data || response;
+        const normalizedUser = normalizeUserRecord(userPayload || { email: normalizedEmail });
+
+        const sessionUser = toSessionUser(normalizedUser);
+        setStoredSession(sessionUser);
+        setUser(sessionUser);
+        setIsAuthenticated(true);
+        setAuthError(null);
+        return sessionUser;
+      } catch (err) {
+        console.error("❌ Erro no login:", err.message);
+        throw err;
+      }
+    }
+
     const users = getStoredUsers();
-    const normalizedEmail = (email || "").trim().toLowerCase();
     const foundUser = users.find(
-      (item) => item.email.toLowerCase() === normalizedEmail && item.password === password
+      (item) => normalizeEmail(item.email) === normalizedEmail && item.password === password
     );
 
     if (!foundUser) {
@@ -127,6 +210,7 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
     setIsAuthenticated(false);
     clearStoredSession();
+    setAuthToken(null);
   };
 
   const navigateToLogin = () => {

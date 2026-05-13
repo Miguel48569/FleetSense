@@ -8,22 +8,27 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function Register() {
   const navigate = useNavigate();
   const { register } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formData, setFormData] = useState({ name: "", email: "", password: "", confirmPassword: "" });
+  const [formData, setFormData] = useState({ name: "", email: "", password: "", confirmPassword: "", matricula: "", cargo: "" });
 
   const handleChange = (field) => (event) => {
     setFormData((prev) => ({ ...prev, [field]: event.target.value }));
   };
 
+  const handleCargoChange = (value) => {
+    setFormData((prev) => ({ ...prev, cargo: value }));
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    if (!formData.name || !formData.email || !formData.password) {
-      toast({ title: "Campos obrigatórios", description: "Preencha nome, e-mail e senha.", variant: "destructive" });
+    if (!formData.name || !formData.email || !formData.password || !formData.matricula || !formData.cargo) {
+      toast({ title: "Campos obrigatórios", description: "Preencha todos os campos.", variant: "destructive" });
       return;
     }
 
@@ -39,7 +44,13 @@ export default function Register() {
 
     try {
       setIsSubmitting(true);
-      await register({ name: formData.name, email: formData.email, password: formData.password });
+      await register({
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        matricula: formData.matricula,
+        cargo: formData.cargo,
+      });
       toast({ title: "Conta criada", description: "Seu cadastro foi concluido com sucesso." });
       navigate("/", { replace: true });
     } catch (error) {
@@ -95,6 +106,31 @@ export default function Register() {
                 />
               </div>
 
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label htmlFor="matricula">Matricula</Label>
+                <Input
+                  id="matricula"
+                  type="text"
+                  placeholder="ADM2024001 ou MOT2024001"
+                  value={formData.matricula}
+                  onChange={handleChange("matricula")}
+                />
+              </div>
+
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label htmlFor="cargo">Cargo</Label>
+                <Select value={formData.cargo} onValueChange={handleCargoChange}>
+                  <SelectTrigger id="cargo">
+                    <SelectValue placeholder="Selecione o cargo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="administrador">Administrador</SelectItem>
+                    <SelectItem value="motorista">Motorista</SelectItem>
+                    <SelectItem value="assistente">Assistente</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="space-y-1.5">
                 <Label htmlFor="password">Senha</Label>
                 <Input
@@ -127,6 +163,8 @@ export default function Register() {
           </form>
 
           <p className="mt-4 text-center text-sm text-muted-foreground">
+            O cadastro e enviado para o backend em nuvem.
+            <br />
             Ja possui conta?{" "}
             <Link to="/login" className="inline-flex items-center gap-1 font-medium text-primary hover:underline">
               Entrar agora

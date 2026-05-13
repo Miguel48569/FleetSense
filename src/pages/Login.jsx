@@ -93,9 +93,9 @@ export default function Login() {
           <div className="mt-6 rounded-lg border border-border/70 bg-muted/30 p-3 text-xs text-muted-foreground">
             <p className="flex items-center gap-1 font-medium text-foreground">
               <ShieldCheck className="h-3.5 w-3.5" />
-              Acesso local para ambiente de desenvolvimento
+              Autenticacao conectada ao backend em nuvem
             </p>
-            <p className="mt-1">Ainda não tem conta? Crie em poucos segundos.</p>
+            <p className="mt-1">Use a tela de cadastro para criar o usuario, se ele ainda nao existir.</p>
           </div>
 
           <p className="mt-4 text-center text-sm text-muted-foreground">
