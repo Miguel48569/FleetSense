@@ -11,28 +11,28 @@ export default function Reports() {
   const queryClient = useQueryClient();
 
   // ── Buscar lista de viagens ──────────────────────────────
-  // Backend: GET /api/trips
+  // Backend: GET /api/viagens
   const { data: trips = [], isLoading: tripsLoading } = useQuery({
     queryKey: ["trips"],
     queryFn: tripsApi.list,
   });
 
   // ── Buscar lista de veículos ─────────────────────────────
-  // Backend: GET /api/vehicles
+  // Backend: GET /api/veiculos
   const { data: vehicles = [] } = useQuery({
     queryKey: ["vehicles"],
     queryFn: vehiclesApi.list,
   });
 
   // ── Buscar lista de motoristas ───────────────────────────
-  // Backend: GET /api/drivers
+  // Backend: GET /api/motoristas
   const { data: drivers = [] } = useQuery({
     queryKey: ["drivers"],
     queryFn: driversApi.list,
   });
 
   // ── Registrar viagem ─────────────────────────────────────
-  // Backend: POST /api/trips
+  // Backend: POST /api/viagens
   const createMutation = useMutation({
     mutationFn: tripsApi.create,
     onSuccess: () => {
@@ -45,7 +45,7 @@ export default function Reports() {
   });
 
   // ── Deletar viagem ───────────────────────────────────────
-  // Backend: DELETE /api/trips/:id
+  // Backend: DELETE /api/viagens/:id
   const deleteMutation = useMutation({
     mutationFn: tripsApi.delete,
     onSuccess: () => {

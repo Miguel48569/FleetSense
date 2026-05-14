@@ -39,8 +39,8 @@ export default function DriverTable({ drivers, vehicles, onDelete }) {
             {drivers.map((d) => {
               const vehicle = vehicleMap[d.vehicle_id];
               return (
-                <TableRow key={d.id}>
-                  <TableCell className="font-medium">{d.name}</TableCell>
+                <TableRow key={d.cpf}>
+                  <TableCell className="font-medium">{d.nome}</TableCell>
                   <TableCell className="font-mono">{d.cnh}</TableCell>
                   <TableCell>
                     <Badge variant={d.status === 'ativo' ? 'default' : 'secondary'}>
@@ -51,7 +51,7 @@ export default function DriverTable({ drivers, vehicles, onDelete }) {
                     {vehicle ? `${vehicle.plate} - ${vehicle.model}` : <span className="text-muted-foreground">—</span>}
                   </TableCell>
                   <TableCell>
-                    <Button variant="ghost" size="icon" onClick={() => onDelete(d.id)}>
+                    <Button variant="ghost" size="icon" onClick={() => onDelete(d.cpf)}>
                       <Trash2 className="w-4 h-4 text-destructive" />
                     </Button>
                   </TableCell>

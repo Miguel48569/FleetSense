@@ -9,7 +9,7 @@ import { Plus } from 'lucide-react';
 export default function TripForm({ onSubmit, vehicles, drivers }) {
   const [form, setForm] = useState({
     vehicle_id: '', driver_id: '', origin: '', destination: '',
-    distance_km: '', fuel_liters: '', cost: '', date: ''
+    quilometragem: '', fuel_liters: '', cost: '', date: ''
   });
   const [loading, setLoading] = useState(false);
 
@@ -18,11 +18,11 @@ export default function TripForm({ onSubmit, vehicles, drivers }) {
     setLoading(true);
     await onSubmit({
       ...form,
-      distance_km: Number(form.distance_km) || 0,
+      quilometragem: Number(form.quilometragem) || 0,
       fuel_liters: Number(form.fuel_liters) || 0,
       cost: Number(form.cost) || 0,
     });
-    setForm({ vehicle_id: '', driver_id: '', origin: '', destination: '', distance_km: '', fuel_liters: '', cost: '', date: '' });
+    setForm({ vehicle_id: '', driver_id: '', origin: '', destination: '', quilometragem: '', fuel_liters: '', cost: '', date: '' });
     setLoading(false);
   };
 
@@ -36,7 +36,7 @@ export default function TripForm({ onSubmit, vehicles, drivers }) {
             <Select value={form.vehicle_id} onValueChange={(v) => setForm({ ...form, vehicle_id: v })}>
               <SelectTrigger><SelectValue placeholder="Selecionar..." /></SelectTrigger>
               <SelectContent>
-                {vehicles.map(v => (<SelectItem key={v.id} value={v.id}>{v.plate} - {v.model}</SelectItem>))}
+                {vehicles.map((v, i) => (<SelectItem key={v?.id || v?.plate || i} value={v.id}>{v.plate} - {v.model}</SelectItem>))}
               </SelectContent>
             </Select>
           </div>
@@ -45,7 +45,7 @@ export default function TripForm({ onSubmit, vehicles, drivers }) {
             <Select value={form.driver_id} onValueChange={(v) => setForm({ ...form, driver_id: v })}>
               <SelectTrigger><SelectValue placeholder="Selecionar..." /></SelectTrigger>
               <SelectContent>
-                {drivers.map(d => (<SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>))}
+                {drivers.map((d, i) => (<SelectItem key={d?.id || d?.name || i} value={d.id}>{d.name}</SelectItem>))}
               </SelectContent>
             </Select>
           </div>
@@ -58,8 +58,8 @@ export default function TripForm({ onSubmit, vehicles, drivers }) {
             <Input placeholder="Cidade/Local" value={form.destination} onChange={(e) => setForm({ ...form, destination: e.target.value })} required />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Distância (km)</Label>
-            <Input type="number" placeholder="0" value={form.distance_km} onChange={(e) => setForm({ ...form, distance_km: e.target.value })} />
+            <Label className="text-xs font-medium">Quilometragem (km)</Label>
+            <Input type="number" placeholder="0" value={form.quilometragem} onChange={(e) => setForm({ ...form, quilometragem: e.target.value })} />
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs font-medium">Combustível (L)</Label>

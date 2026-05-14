@@ -6,6 +6,8 @@ export default function FuelConsumption({ trips, vehicles }) {
   const vehicleMap = {};
   vehicles.forEach(v => { vehicleMap[v.id] = v; });
 
+  const getTripKm = (trip) => trip?.quilometragem ?? trip?.distance_km ?? 0;
+
   const consumption = {};
   trips.forEach(trip => {
     if (!trip.vehicle_id) return;
@@ -13,7 +15,7 @@ export default function FuelConsumption({ trips, vehicles }) {
       consumption[trip.vehicle_id] = { totalFuel: 0, totalKm: 0, totalCost: 0, count: 0 };
     }
     consumption[trip.vehicle_id].totalFuel += trip.fuel_liters || 0;
-    consumption[trip.vehicle_id].totalKm += trip.distance_km || 0;
+    consumption[trip.vehicle_id].totalKm += getTripKm(trip);
     consumption[trip.vehicle_id].totalCost += trip.cost || 0;
     consumption[trip.vehicle_id].count += 1;
   });

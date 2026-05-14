@@ -16,71 +16,46 @@ import Chat from "@/pages/Chat";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 
-function AuthenticatedRoute({ children }) {
-  const { isAuthenticated, isLoadingAuth } = useAuth();
+// PROTEÇÃO DE ROTAS DESATIVADA - BACKEND NÃO IMPLEMENTOU AUTENTICAÇÃO
+// function AuthenticatedRoute({ children }) {
+//   const { isAuthenticated, isLoadingAuth } = useAuth();
+//   if (isLoadingAuth) {
+//     return (
+//       <div className="flex min-h-screen items-center justify-center bg-background">
+//         <p className="text-sm text-muted-foreground">Validando autenticação...</p>
+//       </div>
+//     );
+//   }
+//   if (!isAuthenticated) {
+//     return <Navigate to="/login" replace />;
+//   }
+//   return children;
+// }
 
-  if (isLoadingAuth) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <p className="text-sm text-muted-foreground">Validando autenticação...</p>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
-  return children;
-}
-
-function PublicOnlyRoute({ children }) {
-  const { isAuthenticated, isLoadingAuth } = useAuth();
-
-  if (isLoadingAuth) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <p className="text-sm text-muted-foreground">Validando autenticação...</p>
-      </div>
-    );
-  }
-
-  if (isAuthenticated) {
-    return <Navigate to="/" replace />;
-  }
-
-  return children;
-}
+// function PublicOnlyRoute({ children }) {
+//   const { isAuthenticated, isLoadingAuth } = useAuth();
+//   if (isLoadingAuth) {
+//     return (
+//       <div className="flex min-h-screen items-center justify-center bg-background">
+//         <p className="text-sm text-muted-foreground">Validando autenticação...</p>
+//       </div>
+//     );
+//   }
+//   if (isAuthenticated) {
+//     return <Navigate to="/" replace />;
+//   }
+//   return children;
+// }
 
 function App() {
   return (
     <QueryClientProvider client={queryClientInstance}>
       <Router>
         <Routes>
-          <Route
-            path="/login"
-            element={(
-              <PublicOnlyRoute>
-                <Login />
-              </PublicOnlyRoute>
-            )}
-          />
-          <Route
-            path="/cadastro"
-            element={(
-              <PublicOnlyRoute>
-                <Register />
-              </PublicOnlyRoute>
-            )}
-          />
+          <Route path="/login" element={<Login />} />
+          <Route path="/cadastro" element={<Register />} />
 
-          <Route
-            element={(
-              <AuthenticatedRoute>
-                <AppLayout />
-              </AuthenticatedRoute>
-            )}
-          >
+          <Route element={<AppLayout />}>
             <Route path="/" element={<Dashboard />} />
             <Route path="/veiculos" element={<Vehicles />} />
             <Route path="/motoristas" element={<Drivers />} />

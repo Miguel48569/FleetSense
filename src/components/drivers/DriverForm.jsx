@@ -9,6 +9,7 @@ import { Plus } from 'lucide-react';
 export default function DriverForm({ onSubmit, vehicles }) {
   const [form, setForm] = useState({ name: '', cnh: '', status: 'ativo', vehicle_id: 'none' });
   const [loading, setLoading] = useState(false);
+  const vehicleOptions = (vehicles || []).filter((v) => v?.id !== undefined && v?.id !== null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -48,8 +49,8 @@ export default function DriverForm({ onSubmit, vehicles }) {
             <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="ativo">Ativo</SelectItem>
-                <SelectItem value="inativo">Inativo</SelectItem>
+                <SelectItem key="status-ativo" value="ativo">Ativo</SelectItem>
+                <SelectItem key="status-inativo" value="inativo">Inativo</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -58,9 +59,9 @@ export default function DriverForm({ onSubmit, vehicles }) {
             <Select value={form.vehicle_id} onValueChange={(v) => setForm({ ...form, vehicle_id: v })}>
               <SelectTrigger><SelectValue placeholder="Selecionar..." /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">Nenhum</SelectItem>
-                {vehicles.map(v => (
-                  <SelectItem key={v.id} value={v.id}>{v.plate} - {v.model}</SelectItem>
+                <SelectItem key="vehicle-none" value="none">Nenhum</SelectItem>
+                {vehicleOptions.map((v, i) => (
+                  <SelectItem key={String(v?.id ?? v?.plate ?? i)} value={String(v.id)}>{`${v.plate || 'Sem placa'} - ${v.model || 'Sem modelo'}`}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

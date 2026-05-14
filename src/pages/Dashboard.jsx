@@ -9,19 +9,19 @@ import FleetStatusChart from "@/components/dashboard/FleetStatusChart";
 
 export default function Dashboard() {
   // ── Buscar dados para o dashboard ───────────────────────
-  // Backend: GET /api/vehicles
+  // Backend: GET /api/veiculos
   const { data: vehicles = [] } = useQuery({
     queryKey: ["vehicles"],
     queryFn: vehiclesApi.list,
   });
 
-  // Backend: GET /api/drivers
+  // Backend: GET /api/motoristas
   const { data: drivers = [] } = useQuery({
     queryKey: ["drivers"],
     queryFn: driversApi.list,
   });
 
-  // Backend: GET /api/trips
+  // Backend: GET /api/viagens
   const { data: trips = [] } = useQuery({
     queryKey: ["trips"],
     queryFn: tripsApi.list,

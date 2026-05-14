@@ -8,7 +8,11 @@ import { toast } from '@/components/ui/use-toast';
 
 const statusMap = {
   ativo: { label: 'Ativo', variant: 'default' },
+  disponível: { label: 'Disponível', variant: 'default' },
+  disponivel: { label: 'Disponível', variant: 'default' },
   inativo: { label: 'Inativo', variant: 'secondary' },
+  'em manutenção': { label: 'Em manutenção', variant: 'outline' },
+  em_manutencao: { label: 'Em manutenção', variant: 'outline' },
   manutencao: { label: 'Manutenção', variant: 'outline' },
 };
 
@@ -34,19 +38,33 @@ export default function VehicleTable({ vehicles, onDelete }) {
             <TableRow>
               <TableHead>Placa</TableHead>
               <TableHead>Modelo</TableHead>
+              <TableHead>Fabricante</TableHead>
+              <TableHead>Cor</TableHead>
               <TableHead>Ano</TableHead>
+              <TableHead>Quilometragem</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-12"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {vehicles.map((v) => {
-              const st = statusMap[v.status] || statusMap.ativo;
+            {vehicles.map((v, i) => {
+              const plate = v?.placa || v?.plate || '—';
+              const model = v?.modelo || v?.model || '—';
+              const fabricante = v?.fabricante || v?.manufacturer || '—';
+              const cor = v?.cor || v?.color || '—';
+              const year = v?.ano || v?.year || '—';
+              const quilometragem = Number(v?.quilometragem ?? v?.mileage ?? 0);
+              const rawStatus = `${v?.status || ''}`.trim().toLowerCase();
+              const st = statusMap[rawStatus] || statusMap.ativo;
+              const rowKey = v?.placa || v?.plate || v?.id || i;
               return (
-                <TableRow key={v.id}>
-                  <TableCell className="font-mono font-semibold">{v.plate}</TableCell>
-                  <TableCell>{v.model}</TableCell>
-                  <TableCell>{v.year}</TableCell>
+                <TableRow key={rowKey}>
+                  <TableCell className="font-mono font-semibold">{plate}</TableCell>
+                  <TableCell>{model}</TableCell>
+                  <TableCell>{fabricante}</TableCell>
+                  <TableCell>{cor}</TableCell>
+                  <TableCell>{year}</TableCell>
+                  <TableCell>{`${quilometragem.toLocaleString('pt-BR')} km`}</TableCell>
                   <TableCell>
                     <Badge variant={st.variant}>{st.label}</Badge>
                   </TableCell>
@@ -55,10 +73,10 @@ export default function VehicleTable({ vehicles, onDelete }) {
                       variant="ghost"
                       size="icon"
                       onClick={() => {
-                        onDelete(v.id);
+                        onDelete(v?.placa || v?.plate || v?.id);
                         toast({
                           title: "Veículo removido",
-                          description: `O veículo ${v.plate} foi excluído com sucesso.`,
+                          description: `O veículo ${plate} foi excluído com sucesso.`,
                         });
                       }}
                     >

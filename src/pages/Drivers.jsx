@@ -10,21 +10,21 @@ export default function Drivers() {
   const queryClient = useQueryClient();
 
   // ── Buscar lista de motoristas ───────────────────────────
-  // Backend: GET /api/drivers
+  // Backend: GET /api/motoristas
   const { data: drivers = [], isLoading } = useQuery({
     queryKey: ["drivers"],
     queryFn: driversApi.list,
   });
 
   // ── Buscar lista de veículos (para o select do formulário)
-  // Backend: GET /api/vehicles
+  // Backend: GET /api/veiculos
   const { data: vehicles = [] } = useQuery({
     queryKey: ["vehicles"],
     queryFn: vehiclesApi.list,
   });
 
   // ── Criar motorista ──────────────────────────────────────
-  // Backend: POST /api/drivers
+  // Backend: POST /api/motoristas
   const createMutation = useMutation({
     mutationFn: driversApi.create,
     onSuccess: () => {
@@ -37,7 +37,7 @@ export default function Drivers() {
   });
 
   // ── Deletar motorista ────────────────────────────────────
-  // Backend: DELETE /api/drivers/:id
+  // Backend: DELETE /api/motoristas/:id
   const deleteMutation = useMutation({
     mutationFn: driversApi.delete,
     onSuccess: () => {
@@ -65,7 +65,7 @@ export default function Drivers() {
         drivers={drivers}
         vehicles={vehicles}
         isLoading={isLoading}
-        onDelete={(id) => deleteMutation.mutate(id)}
+        onDelete={(cpfOrId) => deleteMutation.mutate(cpfOrId)}
       />
     </div>
   );

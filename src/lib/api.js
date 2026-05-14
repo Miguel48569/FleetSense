@@ -15,31 +15,26 @@
  *   na raiz do projeto.
  */
 
-const BASE_URL = import.meta.env.VITE_API_URL || null;
+const _RAW_BASE_URL = import.meta.env.VITE_API_URL || null;
+// Normalize base URL: remove trailing slash if present so paths like
+// `/veiculos` can be appended directly. Backend may or may not expose
+// the API under `/api`, so `VITE_API_URL` should match the backend root.
+const BASE_URL = _RAW_BASE_URL ? String(_RAW_BASE_URL).replace(/\/$/, "") : null;
 
 // ─── Utilitários ────────────────────────────────────────────
 
-const generateId = () => `local_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-
-const localDB = {
-  get: (key) => {
-    try {
-      return JSON.parse(localStorage.getItem(`fleetsense_${key}`) || "[]");
-    } catch {
-      return [];
-    }
-  },
-  set: (key, data) => {
-    localStorage.setItem(`fleetsense_${key}`, JSON.stringify(data));
-  },
-};
-
 async function apiFetch(method, path, body = null) {
+  if (!BASE_URL) throw new Error("VITE_API_URL is not configured. Set it in .env to your backend host (e.g. https://host or https://host/api)");
   const url = `${BASE_URL}${path}`;
   const options = {
     method,
     headers: { "Content-Type": "application/json" },
   };
+  // AUTENTICAÇÃO DESATIVADA DURANTE DESENVOLVIMENTO
+  // const token = localStorage.getItem(AUTH_TOKEN_KEY);
+  // if (token) {
+  //   options.headers.Authorization = `Bearer ${token}`;
+  // }
   if (body) options.body = JSON.stringify(body);
 
   const res = await fetch(url, options);
@@ -54,47 +49,133 @@ async function apiFetch(method, path, body = null) {
 
 const isBackendMode = () => !!BASE_URL;
 
+export const authApi = {
+  login: async (email, senha) => {
+    if (!isBackendMode()) return null;
+    return apiFetch("POST", "/login", { email, senha });
+  },
+
+  createUser: async (data) => {
+    if (!isBackendMode()) return null;
+    const response = await apiFetch("POST", "/usuarios", data);
+    return response.data || response;
+  },
+};
+
 // ============================================================
 // VEÍCULOS
 // ============================================================
 
 export const vehiclesApi = {
+  normalizeStatus: (status) => {
+    const raw = `${status || ""}`.trim().toLowerCase();
+    if (!raw) return "ativo";
+    if (raw === "disponível" || raw === "disponivel") return "ativo";
+    if (raw === "em manutenção" || raw === "manutenção" || raw === "manutencao") return "manutencao";
+    if (raw === "inativo") return "inativo";
+    return raw;
+  },
+
+  normalizeVehicle: (vehicle) => {
+    const placa = vehicle?.placa ?? vehicle?.plate ?? "";
+    const modelo = vehicle?.modelo ?? vehicle?.model ?? "";
+    const ano = vehicle?.ano ?? vehicle?.year ?? null;
+    const cor = vehicle?.cor ?? vehicle?.color ?? "";
+    const fabricante = vehicle?.fabricante ?? vehicle?.manufacturer ?? "";
+    const quilometragem = Number(vehicle?.quilometragem ?? vehicle?.mileage ?? 0);
+    const statusOriginal = vehicle?.status ?? "";
+    const status = vehiclesApi.normalizeStatus(statusOriginal);
+
+    return {
+      ...vehicle,
+      placa,
+      modelo,
+      ano,
+      cor,
+      fabricante,
+      quilometragem,
+      // aliases para manter compatibilidade no restante do front
+      plate: placa,
+      model: modelo,
+      year: ano,
+      color: cor,
+      manufacturer: fabricante,
+      mileage: quilometragem,
+      status,
+      status_original: statusOriginal,
+    };
+  },
+
   /**
    * GET /api/vehicles
    * Retorna lista de todos os veículos.
-   * Resposta esperada: Array<{ id, plate, model, year, status }>
+    * Resposta esperada: Array<{ placa, modelo, ano, status, cor, fabricante, quilometragem }>
    */
   list: async () => {
-    if (isBackendMode()) return apiFetch("GET", "/vehicles");
-    return localDB.get("vehicles");
+    if (isBackendMode()) {
+      const res = await apiFetch("GET", "/veiculos");
+      // Normaliza a resposta: pode vir como array direto ou envolvido em objeto
+      const rows = Array.isArray(res) ? res : (res.data || res.vehicles || res.veiculos || res.results || []);
+      return rows.map((vehicle) => vehiclesApi.normalizeVehicle(vehicle));
+    }
+    throw new Error("Backend não configurado");
   },
 
   /**
    * POST /api/vehicles
    * Cria um novo veículo.
-   * Body: { plate: string, model: string, year: number, status: string }
-   * Resposta esperada: { id, plate, model, year, status }
+   * Body: { placa: string, modelo: string, ano: number, status: string, cor: string, fabricante: string, quilometragem: number }
+   * Resposta esperada: { placa, modelo, ano, status, cor, fabricante, quilometragem }
    */
   create: async (data) => {
-    if (isBackendMode()) return apiFetch("POST", "/vehicles", data);
-    const vehicles = localDB.get("vehicles");
-    const newVehicle = { ...data, id: generateId() };
-    localDB.set("vehicles", [...vehicles, newVehicle]);
-    return newVehicle;
+    if (isBackendMode()) {
+      const payload = {
+        ...data,
+        placa: data?.placa ?? data?.plate ?? "",
+        modelo: data?.modelo ?? data?.model ?? "",
+        ano: data?.ano ?? data?.year ?? null,
+        status: data?.status ?? "Disponível",
+        cor: data?.cor ?? data?.color ?? "",
+        fabricante: data?.fabricante ?? data?.manufacturer ?? "",
+        quilometragem: Number(data?.quilometragem ?? data?.mileage ?? 0),
+      };
+      delete payload.plate;
+      delete payload.model;
+      delete payload.year;
+      delete payload.color;
+      delete payload.manufacturer;
+      delete payload.mileage;
+      return apiFetch("POST", "/veiculos", payload);
+    }
+    throw new Error("Backend não configurado");
   },
 
   /**
    * PUT /api/vehicles/:id
    * Atualiza um veículo existente.
-   * Body: { plate?, model?, year?, status? }
-   * Resposta esperada: { id, plate, model, year, status }
+   * Body: { placa?, modelo?, ano?, status?, cor?, fabricante?, quilometragem? }
+   * Resposta esperada: { placa, modelo, ano, status, cor, fabricante, quilometragem }
    */
   update: async (id, data) => {
-    if (isBackendMode()) return apiFetch("PUT", `/vehicles/${id}`, data);
-    const vehicles = localDB.get("vehicles");
-    const updated = vehicles.map((v) => (v.id === id ? { ...v, ...data } : v));
-    localDB.set("vehicles", updated);
-    return updated.find((v) => v.id === id);
+    if (isBackendMode()) {
+      const payload = {
+        ...data,
+        placa: data?.placa ?? data?.plate,
+        modelo: data?.modelo ?? data?.model,
+        ano: data?.ano ?? data?.year,
+        cor: data?.cor ?? data?.color,
+        fabricante: data?.fabricante ?? data?.manufacturer,
+        quilometragem: data?.quilometragem ?? data?.mileage,
+      };
+      delete payload.plate;
+      delete payload.model;
+      delete payload.year;
+      delete payload.color;
+      delete payload.manufacturer;
+      delete payload.mileage;
+      return apiFetch("PUT", `/veiculos/${id}`, payload);
+    }
+    throw new Error("Backend não configurado");
   },
 
   /**
@@ -103,10 +184,8 @@ export const vehiclesApi = {
    * Resposta esperada: { success: true }
    */
   delete: async (id) => {
-    if (isBackendMode()) return apiFetch("DELETE", `/vehicles/${id}`);
-    const vehicles = localDB.get("vehicles");
-    localDB.set("vehicles", vehicles.filter((v) => v.id !== id));
-    return { success: true };
+    if (isBackendMode()) return apiFetch("DELETE", `/veiculos/${id}`);
+    throw new Error("Backend não configurado");
   },
 };
 
@@ -121,8 +200,12 @@ export const driversApi = {
    * Resposta esperada: Array<{ id, name, cnh, status, vehicle_id }>
    */
   list: async () => {
-    if (isBackendMode()) return apiFetch("GET", "/drivers");
-    return localDB.get("drivers");
+    if (isBackendMode()) {
+      const res = await apiFetch("GET", "/motoristas");
+      // Normaliza a resposta: pode vir como array direto ou envolvido em objeto
+      return Array.isArray(res) ? res : (res.data || res.drivers || res.motoristas || res.results || []);
+    }
+    throw new Error("Backend não configurado");
   },
 
   /**
@@ -132,11 +215,8 @@ export const driversApi = {
    * Resposta esperada: { id, name, cnh, status, vehicle_id }
    */
   create: async (data) => {
-    if (isBackendMode()) return apiFetch("POST", "/drivers", data);
-    const drivers = localDB.get("drivers");
-    const newDriver = { ...data, id: generateId() };
-    localDB.set("drivers", [...drivers, newDriver]);
-    return newDriver;
+    if (isBackendMode()) return apiFetch("POST", "/motoristas", data);
+    throw new Error("Backend não configurado");
   },
 
   /**
@@ -146,11 +226,8 @@ export const driversApi = {
    * Resposta esperada: { id, name, cnh, status, vehicle_id }
    */
   update: async (id, data) => {
-    if (isBackendMode()) return apiFetch("PUT", `/drivers/${id}`, data);
-    const drivers = localDB.get("drivers");
-    const updated = drivers.map((d) => (d.id === id ? { ...d, ...data } : d));
-    localDB.set("drivers", updated);
-    return updated.find((d) => d.id === id);
+    if (isBackendMode()) return apiFetch("PUT", `/motoristas/${id}`, data);
+    throw new Error("Backend não configurado");
   },
 
   /**
@@ -159,10 +236,8 @@ export const driversApi = {
    * Resposta esperada: { success: true }
    */
   delete: async (id) => {
-    if (isBackendMode()) return apiFetch("DELETE", `/drivers/${id}`);
-    const drivers = localDB.get("drivers");
-    localDB.set("drivers", drivers.filter((d) => d.id !== id));
-    return { success: true };
+    if (isBackendMode()) return apiFetch("DELETE", `/motoristas/${id}`);
+    throw new Error("Backend não configurado");
   },
 };
 
@@ -175,28 +250,36 @@ export const tripsApi = {
    * GET /api/trips
    * Retorna lista de todas as viagens.
    * Resposta esperada: Array<{ id, vehicle_id, driver_id, origin, destination,
-   *                            distance_km, fuel_liters, cost, date }>
+    *                            quilometragem, fuel_liters, cost, date }>
    */
   list: async () => {
-    if (isBackendMode()) return apiFetch("GET", "/trips");
-    return localDB.get("trips");
+    if (isBackendMode()) {
+      const res = await apiFetch("GET", "/viagens");
+      // Normaliza a resposta: pode vir como array direto ou envolvido em objeto
+      return Array.isArray(res) ? res : (res.data || res.trips || res.viagens || res.results || []);
+    }
+    throw new Error("Backend não configurado");
   },
 
   /**
    * POST /api/trips
    * Registra uma nova viagem.
    * Body: { vehicle_id: string, driver_id: string, origin: string,
-   *         destination: string, distance_km: number, fuel_liters: number,
+   *         destination: string, quilometragem: number, fuel_liters: number,
    *         cost: number, date: string (ISO) }
    * Resposta esperada: { id, vehicle_id, driver_id, origin, destination,
-   *                      distance_km, fuel_liters, cost, date }
+   *                      quilometragem, fuel_liters, cost, date }
    */
   create: async (data) => {
-    if (isBackendMode()) return apiFetch("POST", "/trips", data);
-    const trips = localDB.get("trips");
-    const newTrip = { ...data, id: generateId() };
-    localDB.set("trips", [...trips, newTrip]);
-    return newTrip;
+    if (isBackendMode()) {
+      const payload = {
+        ...data,
+        quilometragem: data?.quilometragem ?? data?.distance_km ?? 0,
+      };
+      delete payload.distance_km;
+      return apiFetch("POST", "/viagens", payload);
+    }
+    throw new Error("Backend não configurado");
   },
 
   /**
@@ -205,10 +288,8 @@ export const tripsApi = {
    * Resposta esperada: { success: true }
    */
   delete: async (id) => {
-    if (isBackendMode()) return apiFetch("DELETE", `/trips/${id}`);
-    const trips = localDB.get("trips");
-    localDB.set("trips", trips.filter((t) => t.id !== id));
-    return { success: true };
+    if (isBackendMode()) return apiFetch("DELETE", `/viagens/${id}`);
+    throw new Error("Backend não configurado");
   },
 };
 
@@ -235,18 +316,7 @@ export const dashboardApi = {
    */
   stats: async () => {
     if (isBackendMode()) return apiFetch("GET", "/dashboard/stats");
-    // Fallback: calcula localmente
-    const vehicles = localDB.get("vehicles");
-    const drivers = localDB.get("drivers");
-    const trips = localDB.get("trips");
-    return {
-      total_vehicles: vehicles.length,
-      active_vehicles: vehicles.filter((v) => v.status === "ativo").length,
-      total_drivers: drivers.length,
-      active_drivers: drivers.filter((d) => d.status === "ativo").length,
-      total_trips: trips.length,
-      total_cost: trips.reduce((s, t) => s + (t.cost || 0), 0),
-    };
+    throw new Error("Backend não configurado");
   },
 };
 
@@ -275,7 +345,7 @@ export const aiApi = {
    *     }>,
    *     trips: Array<{          // lista de viagens
    *       id, vehicle_id, driver_id, origin, destination,
-   *       distance_km, fuel_liters, cost, date
+  *       quilometragem, fuel_liters, cost, date
    *     }>
    *   },
    *   history: Array<{          // histórico da conversa (opcional)
@@ -313,7 +383,7 @@ export const aiApi = {
     const avgKmL =
       trips.length > 0
         ? (
-            trips.reduce((s, t) => s + (t.distance_km || 0), 0) /
+            trips.reduce((s, t) => s + (t.quilometragem ?? t.distance_km ?? 0), 0) /
             Math.max(
               trips.reduce((s, t) => s + (t.fuel_liters || 0), 0),
               1

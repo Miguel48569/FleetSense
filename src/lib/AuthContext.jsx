@@ -99,9 +99,27 @@ export const AuthProvider = ({ children }) => {
     return sessionUser;
   };
 
-  const login = ({ email, password }) => {
-    const users = getStoredUsers();
+  const login = async ({ email, password }) => {
     const normalizedEmail = (email || "").trim().toLowerCase();
+
+    // BACKEND NÃO IMPLEMENTOU AUTENTICAÇÃO - USAR APENAS FALLBACK LOCAL
+    // if (import.meta.env.VITE_API_URL) {
+    //   try {
+    //     const response = await authApi.login(normalizedEmail, password);
+    //     // FLUXO DE TOKEN DESATIVADO
+    //     // if (USE_BEARER_AUTH) {
+    //     //   const token = response?.token || response?.access_token || response?.auth_token || response?.accessToken || response?.data?.token;
+    //     //   if (token) setAuthToken(token);
+    //     // }
+    //     // const userPayload = response?.user || response?.usuario || response?.data || response;
+    //   } catch (err) {
+    //     setAuthError({ type: "login_failed", message: err.message });
+    //     throw err;
+    //   }
+    // }
+
+    // Fallback local
+    const users = getStoredUsers();
     const foundUser = users.find(
       (item) => item.email.toLowerCase() === normalizedEmail && item.password === password
     );

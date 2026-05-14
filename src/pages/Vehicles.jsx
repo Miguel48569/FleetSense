@@ -10,14 +10,14 @@ export default function Vehicles() {
   const queryClient = useQueryClient();
 
   // ── Buscar lista de veículos ─────────────────────────────
-  // Backend: GET /api/vehicles
+  // Backend: GET /api/veiculos
   const { data: vehicles = [], isLoading } = useQuery({
     queryKey: ["vehicles"],
     queryFn: vehiclesApi.list,
   });
 
   // ── Criar veículo ────────────────────────────────────────
-  // Backend: POST /api/vehicles
+  // Backend: POST /api/veiculos
   const createMutation = useMutation({
     mutationFn: vehiclesApi.create,
     onSuccess: () => {
@@ -30,7 +30,7 @@ export default function Vehicles() {
   });
 
   // ── Deletar veículo ──────────────────────────────────────
-  // Backend: DELETE /api/vehicles/:id
+  // Backend: DELETE /api/veiculos/:id
   const deleteMutation = useMutation({
     mutationFn: vehiclesApi.delete,
     onSuccess: () => {

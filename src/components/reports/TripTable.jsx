@@ -12,12 +12,14 @@ export default function TripTable({ trips, vehicles, drivers, onDelete }) {
   const driverMap = {};
   drivers.forEach(d => { driverMap[d.id] = d; });
 
+  const getTripKm = (trip) => trip?.quilometragem ?? trip?.distance_km ?? 0;
+
   const exportCSV = () => {
     const header = 'Data,Veículo,Motorista,Origem,Destino,Km,Litros,Custo\n';
     const rows = trips.map(t => {
       const v = vehicleMap[t.vehicle_id];
       const d = driverMap[t.driver_id];
-      return `${t.date},${v?.plate || ''},${d?.name || ''},${t.origin},${t.destination},${t.distance_km || ''},${t.fuel_liters || ''},${t.cost || ''}`;
+      return `${t.date},${v?.plate || ''},${d?.name || ''},${t.origin},${t.destination},${getTripKm(t) || ''},${t.fuel_liters || ''},${t.cost || ''}`;
     }).join('\n');
     const blob = new Blob([header + rows], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
@@ -68,7 +70,7 @@ export default function TripTable({ trips, vehicles, drivers, onDelete }) {
                     <TableCell>{d?.name || '—'}</TableCell>
                     <TableCell>{t.origin}</TableCell>
                     <TableCell>{t.destination}</TableCell>
-                    <TableCell>{t.distance_km || '—'}</TableCell>
+                    <TableCell>{getTripKm(t) || '—'}</TableCell>
                     <TableCell>{t.fuel_liters || '—'}</TableCell>
                     <TableCell>R$ {(t.cost || 0).toFixed(2)}</TableCell>
                     {onDelete && (

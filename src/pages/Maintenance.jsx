@@ -47,6 +47,39 @@ const statusLabel = {
 	manutencao: "Em manutenção",
 };
 
+function normalizeVehicleStatus(status) {
+	const raw = `${status || ""}`.trim().toLowerCase();
+	if (!raw) return "ativo";
+	if (raw === "manutencao" || raw === "manutenção" || raw === "em manutenção") return "manutencao";
+	if (raw === "inativo") return "inativo";
+	if (raw === "disponivel" || raw === "disponível") return "ativo";
+	return raw;
+}
+
+function getVehicleId(vehicle) {
+	return vehicle?.id ?? vehicle?.placa ?? vehicle?.plate ?? "";
+}
+
+function getVehiclePlate(vehicle) {
+	return vehicle?.placa ?? vehicle?.plate ?? "";
+}
+
+function getVehicleModel(vehicle) {
+	return vehicle?.modelo ?? vehicle?.model ?? "";
+}
+
+function getTripVehicleRef(trip) {
+	return trip?.vehicle_id ?? trip?.veiculo_id ?? trip?.placa_veiculo ?? trip?.vehicle_plate ?? trip?.placa ?? "";
+}
+
+function getTripDistance(trip) {
+	return normalizeNumber(trip?.distance_km ?? trip?.distancia_km ?? trip?.quilometragem ?? trip?.km);
+}
+
+function getTripDate(trip) {
+	return trip?.date ?? trip?.data ?? trip?.data_viagem ?? trip?.created_at ?? "";
+}
+
 const MAINTENANCE_INTERVAL_KM = 10000;
 const MAINTENANCE_STORAGE_KEY = "fleetsense_maintenance_details";
 const RISK_WEIGHTS = {
@@ -112,10 +145,16 @@ function getStatusScore(status) {
 }
 
 function getVehicleRisk(vehicle, trips) {
-	const modelTrips = trips.filter((trip) => `${trip.vehicle_id}` === `${vehicle.id}`);
-	const totalKm = modelTrips.reduce((sum, trip) => sum + normalizeNumber(trip.distance_km), 0);
+	const vehicleId = `${vehicle.id || ""}`;
+	const vehiclePlate = `${vehicle.plate || ""}`.toLowerCase();
+	const modelTrips = trips.filter((trip) => {
+		const tripRef = `${getTripVehicleRef(trip) || ""}`;
+		if (!tripRef) return false;
+		return tripRef === vehicleId || tripRef.toLowerCase() === vehiclePlate;
+	});
+	const totalKm = modelTrips.reduce((sum, trip) => sum + getTripDistance(trip), 0);
 	const lastTripDate = modelTrips
-		.map((trip) => trip.date)
+		.map((trip) => getTripDate(trip))
 		.filter(Boolean)
 		.sort((a, b) => new Date(b) - new Date(a))[0];
 
@@ -216,8 +255,23 @@ export default function Maintenance() {
 	const maintenanceRows = useMemo(() => {
 		return vehicles
 			.map((vehicle) => ({
-				vehicle,
-				...getVehicleRisk(vehicle, trips),
+				vehicle: {
+					...vehicle,
+					id: getVehicleId(vehicle),
+					plate: getVehiclePlate(vehicle),
+					model: getVehicleModel(vehicle),
+					status: normalizeVehicleStatus(vehicle?.status),
+				},
+				...getVehicleRisk(
+					{
+						...vehicle,
+						id: getVehicleId(vehicle),
+						plate: getVehiclePlate(vehicle),
+						model: getVehicleModel(vehicle),
+						status: normalizeVehicleStatus(vehicle?.status),
+					},
+					trips
+				),
 			}))
 			.sort((a, b) => b.risk - a.risk);
 	}, [vehicles, trips]);
@@ -235,7 +289,7 @@ export default function Maintenance() {
 	const summary = useMemo(() => {
 		const critical = maintenanceRows.filter((row) => row.level === "critico").length;
 		const moderate = maintenanceRows.filter((row) => row.level === "moderado").length;
-		const inMaintenance = vehicles.filter((vehicle) => vehicle.status === "manutencao").length;
+		const inMaintenance = maintenanceRows.filter(({ vehicle }) => vehicle.status === "manutencao").length;
 		const healthRate = maintenanceRows.length
 			? Math.round(
 					(maintenanceRows.filter((row) => row.level === "baixo").length / maintenanceRows.length) * 100
@@ -449,10 +503,10 @@ export default function Maintenance() {
 									<SelectValue placeholder="Filtrar status" />
 								</SelectTrigger>
 								<SelectContent>
-									<SelectItem value="todos">Todos</SelectItem>
-									<SelectItem value="ativo">Ativo</SelectItem>
-									<SelectItem value="manutencao">Em manutenção</SelectItem>
-									<SelectItem value="inativo">Inativo</SelectItem>
+									<SelectItem key="status-todos" value="todos">Todos</SelectItem>
+									<SelectItem key="status-ativo" value="ativo">Ativo</SelectItem>
+									<SelectItem key="status-manutencao" value="manutencao">Em manutenção</SelectItem>
+									<SelectItem key="status-inativo" value="inativo">Inativo</SelectItem>
 								</SelectContent>
 							</Select>
 						</div>
@@ -485,13 +539,14 @@ export default function Maintenance() {
 									</TableRow>
 								)}
 
-								{filteredRows.map(({ vehicle, risk, level, totalKm, kmSinceInspection, kmScore, inactivityScore, statusScore, nextInspectionKm }) => {
+								{filteredRows.map(({ vehicle, risk, level, totalKm, kmSinceInspection, kmScore, inactivityScore, statusScore, nextInspectionKm }, i) => {
 									const badge = getRiskBadge(level);
 									const details = maintenanceDetails[vehicle.id] || {};
 									const progress = clampPercentage(details.progress);
 									const hasDescription = Boolean(details.description?.trim());
+									const rowKey = vehicle?.id || vehicle?.placa || `${vehicle?.modelo || 'veh'}-${i}`;
 									return (
-										<TableRow key={vehicle.id}>
+										<TableRow key={rowKey}>
 											<TableCell>
 												<button
 													type="button"
@@ -561,11 +616,12 @@ export default function Maintenance() {
 							<p className="text-sm text-muted-foreground">Nenhum veículo com status em manutenção.</p>
 						)}
 
-						{inMaintenanceRows.map(({ vehicle }) => {
+						{inMaintenanceRows.map(({ vehicle }, i) => {
 							const details = maintenanceDetails[vehicle.id] || { description: "", cost: "", progress: 0 };
 							const progress = clampPercentage(details.progress);
+							const rowKey = vehicle?.id || vehicle?.plate || `${vehicle?.model || 'veh'}-in-${i}`;
 							return (
-								<div key={vehicle.id} className="rounded-lg border border-border/80 bg-muted/20 p-3 space-y-2.5">
+								<div key={rowKey} className="rounded-lg border border-border/80 bg-muted/20 p-3 space-y-2.5">
 									<div>
 										<p className="text-sm font-semibold leading-tight">{vehicle.model || "Sem modelo"}</p>
 										<p className="text-xs text-muted-foreground">{vehicle.plate || "Sem placa"}</p>
@@ -608,11 +664,12 @@ export default function Maintenance() {
 							</p>
 						)}
 
-						{priorityRows.map(({ vehicle, risk, level, daysWithoutTrip, kmSinceInspection }) => {
+						{priorityRows.map(({ vehicle, risk, level, daysWithoutTrip, kmSinceInspection }, i) => {
 							const badge = getRiskBadge(level);
+							const rowKey = vehicle?.id || vehicle?.plate || `${vehicle?.model || 'veh'}-pr-${i}`;
 							return (
 								<div
-									key={vehicle.id}
+									key={rowKey}
 									className="rounded-lg border border-border/80 bg-muted/20 p-3"
 								>
 									<div className="mb-2 flex items-start justify-between gap-2">
@@ -655,7 +712,7 @@ export default function Maintenance() {
 						<DialogTitle>Ordem de manutenção</DialogTitle>
 						<DialogDescription>
 							{selectedRow
-								? `${selectedRow.vehicle.model || "Sem modelo"} · ${selectedRow.vehicle.plate || "Sem placa"}`
+								? `${selectedRow.vehicle.modelo || "Sem modelo"} · ${selectedRow.vehicle.placa || "Sem placa"}`
 								: "Selecione um veículo para editar a ordem."}
 						</DialogDescription>
 					</DialogHeader>
