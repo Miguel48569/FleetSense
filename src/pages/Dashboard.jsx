@@ -50,7 +50,7 @@ export default function Dashboard() {
           value={drivers.length}
           icon={Users}
           color="bg-chart-2"
-          subtitle={`${drivers.filter((d) => d.status === "ativo").length} ativos`}
+          //subtitle={`${drivers.filter((d) => d.status === "ativo").length} ativos`}
         />
         <StatCard
           title="Custo Total"

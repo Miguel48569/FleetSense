@@ -2,20 +2,26 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus } from 'lucide-react';
 
-export default function DriverForm({ onSubmit, vehicles }) {
-  const [form, setForm] = useState({ name: '', cnh: '', status: 'ativo', vehicle_id: 'none' });
+export default function DriverForm({ onSubmit }) {
+  const [form, setForm] = useState({
+    cpf: '',
+    nome: '',
+    cnh: '',
+    data_nasc: '',
+    data_adm: '',
+    data_dem: '',
+    email: '',
+  });
   const [loading, setLoading] = useState(false);
-  const vehicleOptions = (vehicles || []).filter((v) => v?.id !== undefined && v?.id !== null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    await onSubmit({ ...form, vehicle_id: form.vehicle_id === 'none' ? '' : form.vehicle_id });
-    setForm({ name: '', cnh: '', status: 'ativo', vehicle_id: 'none' });
+    await onSubmit(form);
+    setForm({ cpf: '', nome: '', cnh: '', data_nasc: '', data_adm: '', data_dem: '', email: '' });
     setLoading(false);
   };
 
@@ -25,13 +31,22 @@ export default function DriverForm({ onSubmit, vehicles }) {
         <CardTitle className="text-base font-semibold">Novo Motorista</CardTitle>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium">CPF</Label>
+            <Input
+              placeholder="000.000.000-00"
+              value={form.cpf}
+              onChange={(e) => setForm({ ...form, cpf: e.target.value })}
+              required
+            />
+          </div>
           <div className="space-y-1.5">
             <Label className="text-xs font-medium">Nome</Label>
             <Input
               placeholder="Nome completo"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              value={form.nome}
+              onChange={(e) => setForm({ ...form, nome: e.target.value })}
               required
             />
           </div>
@@ -45,28 +60,43 @@ export default function DriverForm({ onSubmit, vehicles }) {
             />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Status</Label>
-            <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem key="status-ativo" value="ativo">Ativo</SelectItem>
-                <SelectItem key="status-inativo" value="inativo">Inativo</SelectItem>
-              </SelectContent>
-            </Select>
+            <Label className="text-xs font-medium">Data de nascimento</Label>
+            <Input
+              type="date"
+              value={form.data_nasc}
+              onChange={(e) => setForm({ ...form, data_nasc: e.target.value })}
+              required
+            />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Veículo</Label>
-            <Select value={form.vehicle_id} onValueChange={(v) => setForm({ ...form, vehicle_id: v })}>
-              <SelectTrigger><SelectValue placeholder="Selecionar..." /></SelectTrigger>
-              <SelectContent>
-                <SelectItem key="vehicle-none" value="none">Nenhum</SelectItem>
-                {vehicleOptions.map((v, i) => (
-                  <SelectItem key={String(v?.id ?? v?.plate ?? i)} value={String(v.id)}>{`${v.plate || 'Sem placa'} - ${v.model || 'Sem modelo'}`}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label className="text-xs font-medium">Data de admissão</Label>
+            <Input
+              type="date"
+              value={form.data_adm}
+              onChange={(e) => setForm({ ...form, data_adm: e.target.value })}
+              required
+            />
           </div>
-          <Button type="submit" disabled={loading} className="h-10 w-full md:w-auto">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium">Data de demissão</Label>
+            <Input
+              type="date"
+              value={form.data_dem}
+              onChange={(e) => setForm({ ...form, data_dem: e.target.value })}
+              placeholder="Opcional"
+            />
+          </div>
+          <div className="space-y-1.5 md:col-span-2 lg:col-span-1">
+            <Label className="text-xs font-medium">Email</Label>
+            <Input
+              type="email"
+              placeholder="nome@empresa.com"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              required
+            />
+          </div>
+          <Button type="submit" disabled={loading} className="h-10 w-full md:w-auto lg:col-span-3">
             <Plus className="w-4 h-4 mr-2" />
             Salvar
           </Button>

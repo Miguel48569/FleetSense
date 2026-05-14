@@ -194,16 +194,54 @@ export const vehiclesApi = {
 // ============================================================
 
 export const driversApi = {
+  formatDriverDateTime: (value, allowNull = true) => {
+    const raw = `${value ?? ""}`.trim();
+    if (!raw) return allowNull ? null : "";
+    if (raw.includes("T")) return raw;
+    return `${raw}T00:00:00`;
+  },
+
+  normalizeDriver: (driver) => {
+    const cpf = driver?.cpf ?? driver?.id ?? "";
+    const nome = driver?.nome ?? driver?.name ?? "";
+    const cnh = driver?.cnh ?? "";
+    const dataNasc = driver?.data_nasc ?? driver?.dataNascimento ?? driver?.birth_date ?? "";
+    const dataAdm = driver?.data_adm ?? driver?.dataAdmissao ?? driver?.admission_date ?? "";
+    const dataDem = driver?.data_dem ?? driver?.dataDemissao ?? driver?.dismissal_date ?? "";
+    const email = driver?.email ?? "";
+
+    return {
+      ...driver,
+      cpf,
+      nome,
+      cnh,
+      data_nasc: dataNasc,
+      data_adm: dataAdm,
+      data_dem: dataDem,
+      email,
+      // aliases para compatibilidade
+      id: cpf,
+      name: nome,
+      birth_date: dataNasc,
+      admission_date: dataAdm,
+      dismissal_date: dataDem,
+      dataNascimento: dataNasc,
+      dataAdmissao: dataAdm,
+      dataDemissao: dataDem,
+    };
+  },
+
   /**
    * GET /api/drivers
    * Retorna lista de todos os motoristas.
-   * Resposta esperada: Array<{ id, name, cnh, status, vehicle_id }>
+   * Resposta esperada: Array<{ cpf, nome, cnh, data_nasc, data_adm, data_dem, email }>
    */
   list: async () => {
     if (isBackendMode()) {
       const res = await apiFetch("GET", "/motoristas");
       // Normaliza a resposta: pode vir como array direto ou envolvido em objeto
-      return Array.isArray(res) ? res : (res.data || res.drivers || res.motoristas || res.results || []);
+      const rows = Array.isArray(res) ? res : (res.data || res.drivers || res.motoristas || res.results || []);
+      return rows.map((driver) => driversApi.normalizeDriver(driver));
     }
     throw new Error("Backend não configurado");
   },
@@ -211,22 +249,62 @@ export const driversApi = {
   /**
    * POST /api/drivers
    * Cria um novo motorista.
-   * Body: { name: string, cnh: string, status: string, vehicle_id?: string }
-   * Resposta esperada: { id, name, cnh, status, vehicle_id }
+   * Body: { cpf: string, nome: string, cnh: string, data_nasc: string, data_adm: string, data_dem?: string, email: string }
+   * Resposta esperada: { cpf, nome, cnh, data_nasc, data_adm, data_dem, email }
    */
   create: async (data) => {
-    if (isBackendMode()) return apiFetch("POST", "/motoristas", data);
+    if (isBackendMode()) {
+      const payload = {
+        ...data,
+        cpf: data?.cpf ?? data?.id ?? "",
+        nome: data?.nome ?? data?.name ?? "",
+        cnh: data?.cnh ?? "",
+        data_nasc: driversApi.formatDriverDateTime(data?.data_nasc ?? data?.birth_date ?? data?.dataNascimento ?? "", false).slice(0, 10),
+        data_adm: driversApi.formatDriverDateTime(data?.data_adm ?? data?.admission_date ?? data?.dataAdmissao ?? ""),
+        data_dem: driversApi.formatDriverDateTime(data?.data_dem ?? data?.dismissal_date ?? data?.dataDemissao ?? ""),
+        email: data?.email ?? "",
+      };
+      delete payload.id;
+      delete payload.name;
+      delete payload.birth_date;
+      delete payload.admission_date;
+      delete payload.dismissal_date;
+      delete payload.dataNascimento;
+      delete payload.dataAdmissao;
+      delete payload.dataDemissao;
+      return apiFetch("POST", "/motoristas", payload);
+    }
     throw new Error("Backend não configurado");
   },
 
   /**
    * PUT /api/drivers/:id
    * Atualiza um motorista existente.
-   * Body: { name?, cnh?, status?, vehicle_id? }
-   * Resposta esperada: { id, name, cnh, status, vehicle_id }
+   * Body: { cpf?, nome?, cnh?, data_nasc?, data_adm?, data_dem?, email? }
+   * Resposta esperada: { cpf, nome, cnh, data_nasc, data_adm, data_dem, email }
    */
   update: async (id, data) => {
-    if (isBackendMode()) return apiFetch("PUT", `/motoristas/${id}`, data);
+    if (isBackendMode()) {
+      const payload = {
+        ...data,
+        cpf: data?.cpf ?? data?.id ?? id,
+        nome: data?.nome ?? data?.name,
+        cnh: data?.cnh,
+        data_nasc: driversApi.formatDriverDateTime(data?.data_nasc ?? data?.birth_date ?? data?.dataNascimento ?? "", false).slice(0, 10),
+        data_adm: driversApi.formatDriverDateTime(data?.data_adm ?? data?.admission_date ?? data?.dataAdmissao ?? ""),
+        data_dem: driversApi.formatDriverDateTime(data?.data_dem ?? data?.dismissal_date ?? data?.dataDemissao ?? ""),
+        email: data?.email,
+      };
+      delete payload.id;
+      delete payload.name;
+      delete payload.birth_date;
+      delete payload.admission_date;
+      delete payload.dismissal_date;
+      delete payload.dataNascimento;
+      delete payload.dataAdmissao;
+      delete payload.dataDemissao;
+      return apiFetch("PUT", `/motoristas/${id}`, payload);
+    }
     throw new Error("Backend não configurado");
   },
 

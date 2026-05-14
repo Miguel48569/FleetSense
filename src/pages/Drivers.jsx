@@ -1,7 +1,7 @@
 // Projeto SENAC 2026 - FleetSense
 import React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { driversApi, vehiclesApi } from "@/lib/api";
+import { driversApi } from "@/lib/api";
 import DriverForm from "@/components/drivers/DriverForm";
 import DriverTable from "@/components/drivers/DriverTable";
 import { toast } from "@/components/ui/use-toast";
@@ -14,13 +14,6 @@ export default function Drivers() {
   const { data: drivers = [], isLoading } = useQuery({
     queryKey: ["drivers"],
     queryFn: driversApi.list,
-  });
-
-  // ── Buscar lista de veículos (para o select do formulário)
-  // Backend: GET /api/veiculos
-  const { data: vehicles = [] } = useQuery({
-    queryKey: ["vehicles"],
-    queryFn: vehiclesApi.list,
   });
 
   // ── Criar motorista ──────────────────────────────────────
@@ -58,12 +51,10 @@ export default function Drivers() {
       </div>
       <DriverForm
         onSubmit={(data) => createMutation.mutate(data)}
-        vehicles={vehicles}
         isLoading={createMutation.isPending}
       />
       <DriverTable
         drivers={drivers}
-        vehicles={vehicles}
         isLoading={isLoading}
         onDelete={(cpfOrId) => deleteMutation.mutate(cpfOrId)}
       />

@@ -5,9 +5,18 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Trash2 } from 'lucide-react';
 
-export default function DriverTable({ drivers, vehicles, onDelete }) {
-  const vehicleMap = {};
-  vehicles.forEach(v => { vehicleMap[v.id] = v; });
+function formatDate(value) {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString('pt-BR');
+}
+
+function getDriverStatus(driver) {
+  return driver?.data_dem ? 'Inativo' : 'Ativo';
+}
+
+export default function DriverTable({ drivers, onDelete }) {
 
   if (drivers.length === 0) {
     return (
@@ -28,30 +37,43 @@ export default function DriverTable({ drivers, vehicles, onDelete }) {
         <Table className="min-w-[700px]">
           <TableHeader>
             <TableRow>
+              <TableHead>CPF</TableHead>
               <TableHead>Nome</TableHead>
               <TableHead>CNH</TableHead>
+              <TableHead>Data nasc.</TableHead>
+              <TableHead>Admissão</TableHead>
+              <TableHead>Demissão</TableHead>
+              <TableHead>Email</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Veículo</TableHead>
               <TableHead className="w-12"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {drivers.map((d) => {
-              const vehicle = vehicleMap[d.vehicle_id];
+              const cpf = d.cpf || d.cpf_cnpj || d.id || '—';
+              const nome = d.nome || d.name || '—';
+              const cnh = d.cnh || '—';
+              const dataNasc = formatDate(d.data_nasc || d.dataNascimento || d.birth_date);
+              const dataAdm = formatDate(d.data_adm || d.dataAdmissao || d.admission_date);
+              const dataDem = formatDate(d.data_dem || d.dataDemissao || d.dismissal_date);
+              const email = d.email || '—';
+              const status = getDriverStatus(d);
               return (
-                <TableRow key={d.cpf}>
-                  <TableCell className="font-medium">{d.nome}</TableCell>
-                  <TableCell className="font-mono">{d.cnh}</TableCell>
+                <TableRow key={cpf}>
+                  <TableCell className="font-mono text-xs">{cpf}</TableCell>
+                  <TableCell className="font-medium">{nome}</TableCell>
+                  <TableCell className="font-mono">{cnh}</TableCell>
+                  <TableCell>{dataNasc}</TableCell>
+                  <TableCell>{dataAdm}</TableCell>
+                  <TableCell>{dataDem}</TableCell>
+                  <TableCell className="max-w-[220px] truncate">{email}</TableCell>
                   <TableCell>
-                    <Badge variant={d.status === 'ativo' ? 'default' : 'secondary'}>
-                      {d.status === 'ativo' ? 'Ativo' : 'Inativo'}
+                    <Badge variant={status === 'Ativo' ? 'default' : 'secondary'}>
+                      {status}
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    {vehicle ? `${vehicle.plate} - ${vehicle.model}` : <span className="text-muted-foreground">—</span>}
-                  </TableCell>
-                  <TableCell>
-                    <Button variant="ghost" size="icon" onClick={() => onDelete(d.cpf)}>
+                    <Button variant="ghost" size="icon" onClick={() => onDelete(cpf)}>
                       <Trash2 className="w-4 h-4 text-destructive" />
                     </Button>
                   </TableCell>
