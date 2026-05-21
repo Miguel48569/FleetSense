@@ -1,27 +1,48 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus } from 'lucide-react';
 
-export default function DriverForm({ onSubmit }) {
-  const [form, setForm] = useState({
-    cpf: '',
-    nome: '',
-    cnh: '',
-    data_nasc: '',
-    data_adm: '',
-    data_dem: '',
-    email: '',
-  });
+const emptyForm = {
+  cpf: '',
+  nome: '',
+  cnh: '',
+  data_nasc: '',
+  data_adm: '',
+  data_dem: '',
+  email: '',
+};
+
+const normalizeFormValue = (driver = {}) => ({
+  cpf: driver?.cpf ?? driver?.cpf_cnpj ?? driver?.id ?? '',
+  nome: driver?.nome ?? driver?.name ?? '',
+  cnh: driver?.cnh ?? '',
+  data_nasc: `${driver?.data_nasc ?? driver?.dataNascimento ?? driver?.birth_date ?? ''}`.slice(0, 10),
+  data_adm: `${driver?.data_adm ?? driver?.dataAdmissao ?? driver?.admission_date ?? ''}`.slice(0, 10),
+  data_dem: `${driver?.data_dem ?? driver?.dataDemissao ?? driver?.dismissal_date ?? ''}`.slice(0, 10),
+  email: driver?.email ?? '',
+});
+
+export default function DriverForm({ onSubmit, initialDriver = null, submitLabel = 'Salvar' }) {
+  const [form, setForm] = useState({ ...emptyForm });
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (initialDriver) {
+      setForm(normalizeFormValue(initialDriver));
+      return;
+    }
+
+    setForm({ ...emptyForm });
+  }, [initialDriver]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     await onSubmit(form);
-    setForm({ cpf: '', nome: '', cnh: '', data_nasc: '', data_adm: '', data_dem: '', email: '' });
+    setForm({ ...emptyForm });
     setLoading(false);
   };
 
@@ -98,7 +119,7 @@ export default function DriverForm({ onSubmit }) {
           </div>
           <Button type="submit" disabled={loading} className="h-10 w-full md:w-auto lg:col-span-3">
             <Plus className="w-4 h-4 mr-2" />
-            Salvar
+            {submitLabel}
           </Button>
         </form>
       </CardContent>

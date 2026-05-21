@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Trash2 } from 'lucide-react';
+import { Pencil, Trash2 } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 
 const statusMap = {
@@ -16,7 +16,7 @@ const statusMap = {
   manutencao: { label: 'Manutenção', variant: 'outline' },
 };
 
-export default function VehicleTable({ vehicles, onDelete }) {
+export default function VehicleTable({ vehicles, onDelete, onSelectVehicle }) {
   if (vehicles.length === 0) {
     return (
       <Card className="border-0 shadow-sm">
@@ -58,7 +58,11 @@ export default function VehicleTable({ vehicles, onDelete }) {
               const st = statusMap[rawStatus] || statusMap.ativo;
               const rowKey = v?.placa || v?.plate || v?.id || i;
               return (
-                <TableRow key={rowKey}>
+                <TableRow
+                  key={rowKey}
+                  className="cursor-pointer"
+                  onClick={() => onSelectVehicle?.(v)}
+                >
                   <TableCell className="font-mono font-semibold">{plate}</TableCell>
                   <TableCell>{model}</TableCell>
                   <TableCell>{fabricante}</TableCell>
@@ -69,19 +73,36 @@ export default function VehicleTable({ vehicles, onDelete }) {
                     <Badge variant={st.variant}>{st.label}</Badge>
                   </TableCell>
                   <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => {
-                        onDelete(v?.placa || v?.plate || v?.id);
-                        toast({
-                          title: "Veículo removido",
-                          description: `O veículo ${plate} foi excluído com sucesso.`,
-                        });
-                      }}
-                    >
-                      <Trash2 className="w-4 h-4 text-destructive" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Editar veículo ${plate}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSelectVehicle?.(v);
+                        }}
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Excluir veículo ${plate}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDelete(v?.placa || v?.plate || v?.id);
+                          toast({
+                            title: "Veículo removido",
+                            description: `O veículo ${plate} foi excluído com sucesso.`,
+                          });
+                        }}
+                      >
+                        <Trash2 className="w-4 h-4 text-destructive" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               );

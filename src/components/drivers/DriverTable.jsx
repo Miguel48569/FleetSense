@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Trash2 } from 'lucide-react';
+import { Pencil, Trash2 } from 'lucide-react';
 
 function formatDate(value) {
   if (!value) return '—';
@@ -16,7 +16,7 @@ function getDriverStatus(driver) {
   return driver?.data_dem ? 'Inativo' : 'Ativo';
 }
 
-export default function DriverTable({ drivers, onDelete }) {
+export default function DriverTable({ drivers, onDelete, onSelectDriver }) {
 
   if (drivers.length === 0) {
     return (
@@ -49,8 +49,9 @@ export default function DriverTable({ drivers, onDelete }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {drivers.map((d) => {
-              const cpf = d.cpf || d.cpf_cnpj || d.id || '—';
+            {drivers.map((d, index) => {
+              const driverId = d?.cpf ?? d?.cpf_cnpj ?? d?.id;
+              const cpf = driverId || '—';
               const nome = d.nome || d.name || '—';
               const cnh = d.cnh || '—';
               const dataNasc = formatDate(d.data_nasc || d.dataNascimento || d.birth_date);
@@ -59,7 +60,7 @@ export default function DriverTable({ drivers, onDelete }) {
               const email = d.email || '—';
               const status = getDriverStatus(d);
               return (
-                <TableRow key={cpf}>
+                <TableRow key={driverId || index} className="cursor-pointer" onClick={() => onSelectDriver?.(d)}>
                   <TableCell className="font-mono text-xs">{cpf}</TableCell>
                   <TableCell className="font-medium">{nome}</TableCell>
                   <TableCell className="font-mono">{cnh}</TableCell>
@@ -73,9 +74,34 @@ export default function DriverTable({ drivers, onDelete }) {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Button variant="ghost" size="icon" onClick={() => onDelete(cpf)}>
-                      <Trash2 className="w-4 h-4 text-destructive" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Editar motorista ${nome}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSelectDriver?.(d);
+                        }}
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Excluir motorista ${nome}`}
+                        disabled={!driverId}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!driverId) return;
+                          onDelete(driverId);
+                        }}
+                      >
+                        <Trash2 className="w-4 h-4 text-destructive" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               );

@@ -205,6 +205,8 @@ export const driversApi = {
     const cpf = driver?.cpf ?? driver?.id ?? "";
     const nome = driver?.nome ?? driver?.name ?? "";
     const cnh = driver?.cnh ?? "";
+    const status = driver?.status ?? (driver?.data_dem ? "inativo" : "ativo");
+    const vehicleId = driver?.vehicle_id ?? driver?.vehicleId ?? "";
     const dataNasc = driver?.data_nasc ?? driver?.dataNascimento ?? driver?.birth_date ?? "";
     const dataAdm = driver?.data_adm ?? driver?.dataAdmissao ?? driver?.admission_date ?? "";
     const dataDem = driver?.data_dem ?? driver?.dataDemissao ?? driver?.dismissal_date ?? "";
@@ -215,6 +217,8 @@ export const driversApi = {
       cpf,
       nome,
       cnh,
+      status,
+      vehicle_id: vehicleId,
       data_nasc: dataNasc,
       data_adm: dataAdm,
       data_dem: dataDem,
@@ -222,6 +226,7 @@ export const driversApi = {
       // aliases para compatibilidade
       id: cpf,
       name: nome,
+      vehicleId: vehicleId,
       birth_date: dataNasc,
       admission_date: dataAdm,
       dismissal_date: dataDem,
@@ -255,7 +260,6 @@ export const driversApi = {
   create: async (data) => {
     if (isBackendMode()) {
       const payload = {
-        ...data,
         cpf: data?.cpf ?? data?.id ?? "",
         nome: data?.nome ?? data?.name ?? "",
         cnh: data?.cnh ?? "",
@@ -285,8 +289,8 @@ export const driversApi = {
    */
   update: async (id, data) => {
     if (isBackendMode()) {
+      const safeId = encodeURIComponent(`${id ?? ""}`);
       const payload = {
-        ...data,
         cpf: data?.cpf ?? data?.id ?? id,
         nome: data?.nome ?? data?.name,
         cnh: data?.cnh,
@@ -303,7 +307,7 @@ export const driversApi = {
       delete payload.dataNascimento;
       delete payload.dataAdmissao;
       delete payload.dataDemissao;
-      return apiFetch("PUT", `/motoristas/${id}`, payload);
+      return apiFetch("PUT", `/motoristas/${safeId}`, payload);
     }
     throw new Error("Backend não configurado");
   },
