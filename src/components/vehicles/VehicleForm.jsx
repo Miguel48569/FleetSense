@@ -9,7 +9,7 @@ const emptyForm = {
   placa: '',
   modelo: '',
   ano: '',
-  status: 'Disponível',
+  status: 'Disponivel',
   cor: '',
   fabricante: '',
   quilometragem: '',
@@ -19,7 +19,12 @@ const normalizeFormValue = (vehicle = {}) => ({
   placa: vehicle?.placa ?? vehicle?.plate ?? '',
   modelo: vehicle?.modelo ?? vehicle?.model ?? '',
   ano: vehicle?.ano ?? vehicle?.year ?? '',
-  status: vehicle?.status_original ?? vehicle?.status ?? 'Disponível',
+  status: (() => {
+    const rawStatus = `${vehicle?.status_original ?? vehicle?.status ?? 'Disponivel'}`.trim().toLowerCase();
+    if (rawStatus === 'inativo') return 'Inativo';
+    if (rawStatus === 'em manutenção' || rawStatus === 'manutenção' || rawStatus === 'manutencao' || rawStatus === 'em_manutencao') return 'Em manutenção';
+    return 'Disponivel';
+  })(),
   cor: vehicle?.cor ?? vehicle?.color ?? '',
   fabricante: vehicle?.fabricante ?? vehicle?.manufacturer ?? '',
   quilometragem: vehicle?.quilometragem ?? vehicle?.mileage ?? '',
@@ -89,7 +94,7 @@ export default function VehicleForm({ onSubmit, initialVehicle = null, submitLab
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem key="status-disponivel" value="Disponível">Disponível</SelectItem>
+            <SelectItem key="status-disponivel" value="Disponivel">Disponivel</SelectItem>
             <SelectItem key="status-inativo" value="Inativo">Inativo</SelectItem>
             <SelectItem key="status-manutencao" value="Em manutenção">Em manutenção</SelectItem>
           </SelectContent>

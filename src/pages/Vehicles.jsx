@@ -18,13 +18,11 @@ import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
 
 const statusLabelMap = {
-  ativo: "Ativo",
-  "disponível": "Disponível",
-  disponivel: "Disponível",
+  disponivel: "Disponivel",
   inativo: "Inativo",
   "em manutenção": "Em manutenção",
   em_manutencao: "Em manutenção",
-  manutencao: "Manutenção",
+  manutencao: "Em manutenção",
 };
 
 function VehicleField({ label, value }) {
@@ -86,7 +84,7 @@ export default function Vehicles() {
 
   const selectedVehicleId = selectedVehicle?.id || selectedVehicle?.placa || selectedVehicle?.plate;
   const selectedStatusRaw = `${selectedVehicle?.status || ""}`.trim().toLowerCase();
-  const selectedStatusLabel = statusLabelMap[selectedStatusRaw] || selectedVehicle?.status_original || selectedVehicle?.status || "—";
+  const selectedStatusLabel = statusLabelMap[selectedStatusRaw] || "Disponivel";
 
   return (
     <div className="space-y-5 sm:space-y-6">

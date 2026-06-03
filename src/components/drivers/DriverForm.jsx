@@ -15,17 +15,19 @@ const emptyForm = {
   email: '',
 };
 
-const normalizeFormValue = (driver = {}) => ({
-  cpf: driver?.cpf ?? driver?.cpf_cnpj ?? driver?.id ?? '',
-  nome: driver?.nome ?? driver?.name ?? '',
-  cnh: driver?.cnh ?? '',
-  data_nasc: `${driver?.data_nasc ?? driver?.dataNascimento ?? driver?.birth_date ?? ''}`.slice(0, 10),
-  data_adm: `${driver?.data_adm ?? driver?.dataAdmissao ?? driver?.admission_date ?? ''}`.slice(0, 10),
-  data_dem: `${driver?.data_dem ?? driver?.dataDemissao ?? driver?.dismissal_date ?? ''}`.slice(0, 10),
-  email: driver?.email ?? '',
-});
+function normalizeFormValue(driver = {}) {
+  return {
+    cpf: driver?.cpf ?? driver?.id ?? '',
+    nome: driver?.nome ?? driver?.name ?? '',
+    cnh: driver?.cnh ?? '',
+    data_nasc: driver?.data_nasc ?? driver?.dataNascimento ?? driver?.birth_date ?? '',
+    data_adm: driver?.data_adm ?? driver?.dataAdmissao ?? driver?.admission_date ?? '',
+    data_dem: driver?.data_dem ?? driver?.dataDemissao ?? driver?.dismissal_date ?? '',
+    email: driver?.email ?? '',
+  };
+}
 
-export default function DriverForm({ onSubmit, initialDriver = null, submitLabel = 'Salvar' }) {
+export default function DriverForm({ onSubmit, initialDriver = null, submitLabel = 'Salvar', onCancel }) {
   const [form, setForm] = useState({ ...emptyForm });
   const [loading, setLoading] = useState(false);
 
@@ -49,7 +51,7 @@ export default function DriverForm({ onSubmit, initialDriver = null, submitLabel
   return (
     <Card className="border-0 shadow-sm">
       <CardHeader>
-        <CardTitle className="text-base font-semibold">Novo Motorista</CardTitle>
+        <CardTitle className="text-base font-semibold">{initialDriver ? 'Editar Motorista' : 'Novo Motorista'}</CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
@@ -117,10 +119,17 @@ export default function DriverForm({ onSubmit, initialDriver = null, submitLabel
               required
             />
           </div>
-          <Button type="submit" disabled={loading} className="h-10 w-full md:w-auto lg:col-span-3">
-            <Plus className="w-4 h-4 mr-2" />
-            {submitLabel}
-          </Button>
+          <div className="flex gap-2 md:col-span-2 lg:col-span-3">
+            {onCancel && (
+              <Button type="button" variant="outline" onClick={onCancel} className="h-10 w-full md:w-auto">
+                Cancelar
+              </Button>
+            )}
+            <Button type="submit" disabled={loading} className="h-10 w-full md:w-auto lg:col-span-3">
+              <Plus className="w-4 h-4 mr-2" />
+              {submitLabel}
+            </Button>
+          </div>
         </form>
       </CardContent>
     </Card>

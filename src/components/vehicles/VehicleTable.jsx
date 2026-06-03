@@ -7,13 +7,19 @@ import { Pencil, Trash2 } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 
 const statusMap = {
-  ativo: { label: 'Ativo', variant: 'default' },
-  disponível: { label: 'Disponível', variant: 'default' },
-  disponivel: { label: 'Disponível', variant: 'default' },
+  disponivel: { label: 'Disponivel', variant: 'default' },
   inativo: { label: 'Inativo', variant: 'secondary' },
   'em manutenção': { label: 'Em manutenção', variant: 'outline' },
   em_manutencao: { label: 'Em manutenção', variant: 'outline' },
-  manutencao: { label: 'Manutenção', variant: 'outline' },
+  manutencao: { label: 'Em manutenção', variant: 'outline' },
+};
+
+const badgeClassMap = {
+  disponivel: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+  inativo: 'border-slate-200 bg-slate-100 text-slate-700',
+  'em manutenção': 'border-amber-200 bg-amber-50 text-amber-700',
+  em_manutencao: 'border-amber-200 bg-amber-50 text-amber-700',
+  manutencao: 'border-amber-200 bg-amber-50 text-amber-700',
 };
 
 export default function VehicleTable({ vehicles, onDelete, onSelectVehicle }) {
@@ -55,7 +61,8 @@ export default function VehicleTable({ vehicles, onDelete, onSelectVehicle }) {
               const year = v?.ano || v?.year || '—';
               const quilometragem = Number(v?.quilometragem ?? v?.mileage ?? 0);
               const rawStatus = `${v?.status || ''}`.trim().toLowerCase();
-              const st = statusMap[rawStatus] || statusMap.ativo;
+              const st = statusMap[rawStatus] || statusMap.disponivel;
+              const badgeClass = badgeClassMap[rawStatus] || badgeClassMap.disponivel;
               const rowKey = v?.placa || v?.plate || v?.id || i;
               return (
                 <TableRow
@@ -70,7 +77,7 @@ export default function VehicleTable({ vehicles, onDelete, onSelectVehicle }) {
                   <TableCell>{year}</TableCell>
                   <TableCell>{`${quilometragem.toLocaleString('pt-BR')} km`}</TableCell>
                   <TableCell>
-                    <Badge variant={st.variant}>{st.label}</Badge>
+                    <Badge variant={st.variant} className={badgeClass}>{st.label}</Badge>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">

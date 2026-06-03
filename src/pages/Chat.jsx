@@ -45,6 +45,36 @@ export default function Chat() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  useEffect(() => {
+    let mounted = true;
+
+    const loadWelcomeMessage = async () => {
+      try {
+        const response = await aiApi.welcome();
+        const welcomeText =
+          response?.reply ||
+          response?.mensagem ||
+          response?.message ||
+          response?.data?.reply ||
+          response?.data?.mensagem ||
+          response?.data?.message ||
+          "Olá! Como posso ajudar com a sua frota hoje?";
+
+        if (mounted && welcomeText) {
+          setMessages((prev) => (prev.length === 0 ? [buildMessage("assistant", formatAssistantText(welcomeText))] : prev));
+        }
+      } catch (error) {
+        console.error("[Chat] Falha ao buscar mensagem inicial via GET /chat:", error);
+      }
+    };
+
+    loadWelcomeMessage();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   const buildMessage = (role, content) => ({
     id: window.crypto?.randomUUID
       ? window.crypto.randomUUID()
@@ -52,6 +82,113 @@ export default function Chat() {
     role,
     content,
   });
+
+  const formatAssistantText = (rawContent) => {
+    const initialText = typeof rawContent === "string" ? rawContent : `${rawContent ?? ""}`;
+    if (!initialText.trim()) return "";
+
+    let formatted = initialText.replace(/\r\n/g, "\n").trim();
+
+    formatted = formatted.replace(/\{([^{}]+)\}/g, (match, inner) => {
+      const pairs = inner
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+
+      const transformedPairs = pairs
+        .map((pair) => {
+          const [rawKey, rawValue] = pair.split(":");
+          if (!rawKey || rawValue == null) return null;
+
+          const key = rawKey.replace(/^['"]|['"]$/g, "").trim();
+          const value = rawValue.replace(/^['"]|['"]$/g, "").trim();
+          return key && value ? `${key} (${value})` : null;
+        })
+        .filter(Boolean);
+
+      return transformedPairs.length > 0 ? transformedPairs.join(", ") : match;
+    });
+
+    formatted = formatted.replace(/Resumo geral do sistema\s*:/i, "**Resumo geral do sistema:**");
+
+    const segments = formatted.split(/\s-\s/g).map((segment) => segment.trim()).filter(Boolean);
+    if (segments.length > 1) {
+      const [header, ...items] = segments;
+      const lines = [header, ...items.map((item) => `- ${item}`)];
+      formatted = lines.join("\n");
+    }
+
+    return formatted;
+  };
+
+  const extractAssistantContent = (response) =>
+    response?.data?.resumo ||
+    response?.data?.reply ||
+    response?.data?.message ||
+    response?.data?.mensagem ||
+    response?.reply ||
+    response?.message ||
+    response?.mensagem ||
+    (typeof response === "string" ? response : "");
+
+  const markdownComponents = {
+    h1: ({ children }) => <h1 className="mb-3 text-lg font-bold tracking-tight text-slate-900">{children}</h1>,
+    h2: ({ children }) => <h2 className="mb-2 text-base font-semibold text-slate-900">{children}</h2>,
+    h3: ({ children }) => <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-700">{children}</h3>,
+    p: ({ children }) => <p className="mb-3 leading-7 text-slate-700 last:mb-0">{children}</p>,
+    strong: ({ children }) => <strong className="font-semibold text-slate-900">{children}</strong>,
+    ul: ({ children }) => <ul className="mb-3 ml-5 list-disc space-y-2 text-slate-700 last:mb-0">{children}</ul>,
+    ol: ({ children }) => <ol className="mb-3 ml-5 list-decimal space-y-2 text-slate-700 last:mb-0">{children}</ol>,
+    li: ({ children }) => <li className="pl-1 leading-7">{children}</li>,
+    blockquote: ({ children }) => (
+      <blockquote className="mb-3 border-l-4 border-primary/30 bg-primary/5 px-4 py-3 text-slate-700 last:mb-0">
+        {children}
+      </blockquote>
+    ),
+    a: ({ children, href }) => (
+      <a className="font-medium text-primary underline decoration-primary/30 underline-offset-4 transition-colors hover:decoration-primary" href={href} target="_blank" rel="noreferrer">
+        {children}
+      </a>
+    ),
+    code: ({ inline, children }) =>
+      inline ? (
+        <code className="rounded-md bg-slate-200/70 px-1.5 py-0.5 font-mono text-[0.85em] text-slate-900">{children}</code>
+      ) : (
+        <code className="block whitespace-pre-wrap rounded-xl bg-slate-950 px-4 py-3 font-mono text-sm text-slate-100 shadow-inner">{children}</code>
+      ),
+    pre: ({ children }) => <pre className="mb-3 overflow-x-auto rounded-xl bg-slate-950 p-4 text-sm text-slate-100 last:mb-0">{children}</pre>,
+    table: ({ children }) => (
+      <div className="mb-3 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm last:mb-0">
+        <table className="w-full border-collapse text-left text-sm text-slate-700">{children}</table>
+      </div>
+    ),
+    thead: ({ children }) => <thead className="bg-slate-100 text-slate-900">{children}</thead>,
+    tr: ({ children }) => <tr className="border-b border-slate-200 last:border-b-0">{children}</tr>,
+    th: ({ children }) => <th className="px-4 py-2.5 font-semibold">{children}</th>,
+    td: ({ children }) => <td className="px-4 py-2.5 align-top">{children}</td>,
+  };
+
+  const getChatErrorMessage = (error) => {
+    if (error?.status === 401) {
+      return "Erro 401: Usuário não autenticado. Verifique se o token JWT expirou.";
+    }
+
+    if (error?.status === 403) {
+      return "Erro 403: Acesso negado. Seu usuário não tem permissão para usar o Chat IA.";
+    }
+
+    if ([500, 502, 503, 504].includes(error?.status) || error?.status == null) {
+      const serverDetail =
+        error?.raw?.message ||
+        error?.raw?.error ||
+        error?.raw?.msg ||
+        error?.message ||
+        "Falha ao se comunicar com o servidor.";
+      return `Erro no Servidor: ${serverDetail}`;
+    }
+
+    return error?.message || "Erro ao conectar com o Chat IA.";
+  };
 
   const sendMessage = async (text) => {
     if (!text.trim()) return;
@@ -62,28 +199,23 @@ export default function Chat() {
     setLoading(true);
 
     try {
-      // ── ROTA DA IA ───────────────────────────────────────
-      // Backend: POST /api/ai/chat
-      //
-      // Esta chamada envia a mensagem do usuário + contexto da frota
-      // para o backend de IA. O time de IA deve implementar esta rota.
-      //
-      // Ver documentação completa em: src/lib/api.js → aiApi.chat
-      // ─────────────────────────────────────────────────────
-      const result = await aiApi.chat({
-        message: text,
-        context: { vehicles, drivers, trips },
-        history: messages.slice(-10), // últimas 10 mensagens como histórico
+      console.log("[Chat] Enviando mensagem para POST /chat:", { mensagem: text });
+      const response = await aiApi.chat(text);
+      console.log("Resposta do Backend no POST:", response);
+      const assistantContent = formatAssistantText(extractAssistantContent(response));
+
+      setMessages((prev) => [...prev, buildMessage("assistant", assistantContent)]);
+    } catch (err) {
+      const userMessage = getChatErrorMessage(err);
+      console.error("[Chat] Falha ao chamar POST /chat:", {
+        status: err?.status,
+        message: err?.message,
+        raw: err?.raw,
       });
 
-      setMessages((prev) => [...prev, buildMessage("assistant", result.reply)]);
-    } catch (err) {
       setMessages((prev) => [
         ...prev,
-        buildMessage(
-          "assistant",
-          `**Erro ao conectar com a IA:** ${err.message}\n\nVerifique se o backend está rodando e a variável \`VITE_API_URL\` está configurada no arquivo \`.env\`.`
-        ),
+        buildMessage("assistant", userMessage),
       ]);
     } finally {
       setLoading(false);
@@ -140,14 +272,17 @@ export default function Chat() {
               <div
                 className={`max-w-[90%] rounded-2xl px-4 py-3 sm:max-w-[75%] ${
                   msg.role === "user"
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "border border-slate-200/80 bg-gradient-to-br from-white to-slate-50 text-slate-800 shadow-[0_10px_30px_rgba(15,23,42,0.06)]"
                 }`}
               >
                 {msg.role === "user" ? (
-                  <p className="text-sm">{msg.content}</p>
+                  <p className="whitespace-pre-wrap text-sm leading-7">{msg.content}</p>
                 ) : (
-                  <ReactMarkdown className="prose prose-sm max-w-none break-words text-sm [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+                  <ReactMarkdown
+                    className="max-w-none break-words text-sm leading-7"
+                    components={markdownComponents}
+                  >
                     {msg.content}
                   </ReactMarkdown>
                 )}
@@ -162,11 +297,11 @@ export default function Chat() {
 
           {loading && (
             <div className="flex gap-3">
-              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 shadow-sm">
                 <Bot className="w-4 h-4 text-primary" />
               </div>
-              <div className="bg-muted rounded-2xl px-4 py-3">
-                <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+              <div className="rounded-2xl border border-slate-200/80 bg-white px-4 py-3 shadow-sm">
+                <Loader2 className="w-4 h-4 animate-spin text-slate-500" />
               </div>
             </div>
           )}

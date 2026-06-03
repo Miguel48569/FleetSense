@@ -12,6 +12,7 @@ import {
   LogOut,
   ChevronsLeft,
   ChevronsRight,
+  UserCog,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/AuthContext";
@@ -20,6 +21,7 @@ const navItems = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
   { to: "/veiculos", label: "Veículos", icon: Car },
   { to: "/motoristas", label: "Motoristas", icon: Users },
+  { to: "/usuarios", label: "Usuários", icon: UserCog, adminOnly: true },
   { to: "/manutencao", label: "Manutenção", icon: Wrench },
   { to: "/relatorios", label: "Relatórios", icon: FileBarChart2 },
   { to: "/chat", label: "Chat IA", icon: MessageSquare },
@@ -33,8 +35,9 @@ export default function Sidebar({
   className,
 }) {
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const isCollapsed = showToggle ? collapsed : false;
+  const isAdmin = user?.cargo === "administrador";
   let widthClass = "w-full";
   if (showToggle) {
     widthClass = isCollapsed ? "w-20" : "w-64";
@@ -89,7 +92,9 @@ export default function Sidebar({
 
       {/* Navegação */}
       <nav className="flex-1 px-3 py-4 space-y-1.5">
-        {navItems.map(({ to, label, icon: Icon, end }) => (
+        {navItems
+          .filter((item) => !item.adminOnly || isAdmin)
+          .map(({ to, label, icon: Icon, end }) => (
           <NavLink
             key={to}
             to={to}
@@ -109,7 +114,7 @@ export default function Sidebar({
             <Icon className="w-4 h-4 flex-shrink-0" />
             {!isCollapsed && label}
           </NavLink>
-        ))}
+          ))}
       </nav>
 
       <div className={cn("border-t border-sidebar-border/80 p-3", isCollapsed ? "px-3" : "px-4") }>

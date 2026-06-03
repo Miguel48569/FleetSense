@@ -1,809 +1,739 @@
 // Projeto SENAC 2026 - FleetSense
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import React, { useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-	AlertTriangle,
-	CalendarClock,
-	CheckCircle2,
-	Gauge,
-	Search,
-	Wrench,
+  CalendarClock,
+  CheckCircle2,
+  Clock3,
+  Loader2,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+  Wrench,
 } from "lucide-react";
-import { vehiclesApi, tripsApi } from "@/lib/api";
+import { maintenanceApi, vehiclesApi } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Progress } from "@/components/ui/progress";
-import { Textarea } from "@/components/ui/textarea";
-import { toast } from "@/components/ui/use-toast";
+import { Label } from "@/components/ui/label";
 import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { toast } from "@/components/ui/use-toast";
 
-const statusLabel = {
-	ativo: "Ativo",
-	inativo: "Inativo",
-	manutencao: "Em manutenção",
+const STATUS_OPTIONS = [
+  { value: "Pendente", label: "Pendente" },
+  { value: "Em andamento", label: "Em andamento" },
+  { value: "Concluída", label: "Concluída" },
+];
+
+const STATUS_BADGE = {
+  pendente: "border border-amber-200/60 bg-amber-50 text-amber-700",
+  "em andamento": "border border-blue-200/60 bg-blue-50 text-blue-700",
+  concluída: "border border-emerald-200/60 bg-emerald-50 text-emerald-700",
+  concluida: "border border-emerald-200/60 bg-emerald-50 text-emerald-700",
 };
 
-function normalizeVehicleStatus(status) {
-	const raw = `${status || ""}`.trim().toLowerCase();
-	if (!raw) return "ativo";
-	if (raw === "manutencao" || raw === "manutenção" || raw === "em manutenção") return "manutencao";
-	if (raw === "inativo") return "inativo";
-	if (raw === "disponivel" || raw === "disponível") return "ativo";
-	return raw;
+const emptyForm = {
+  idManutencao: 0,
+  veiculo_placa: "",
+  dataInicio: "",
+  dataPrevista: "",
+  dataFim: "",
+  status: "Pendente",
+};
+
+function formatDateInput(value) {
+  if (!value) return "";
+  const text = `${value}`.trim();
+  if (!text) return "";
+  const date = new Date(text);
+  if (Number.isNaN(date.getTime())) return text.slice(0, 10);
+  return date.toISOString().slice(0, 10);
 }
 
-function getVehicleId(vehicle) {
-	return vehicle?.id ?? vehicle?.placa ?? vehicle?.plate ?? "";
+function formatDateDisplay(value) {
+  if (!value) return "—";
+  const text = `${value}`.trim();
+  if (!text) return "—";
+
+  const isoDateMatch = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoDateMatch) {
+    const [, year, month, day] = isoDateMatch;
+    return `${day}/${month}/${year}`;
+  }
+
+  const date = new Date(text);
+  if (Number.isNaN(date.getTime())) return `${value}`.slice(0, 10);
+  return date.toLocaleDateString("pt-BR");
+}
+
+function normalizeStatus(value) {
+  return `${value || ""}`.trim().toLowerCase();
+}
+
+function getOrderId(order) {
+  return order?.idManutencao ?? order?.id_manutencao ?? order?.id ?? 0;
 }
 
 function getVehiclePlate(vehicle) {
-	return vehicle?.placa ?? vehicle?.plate ?? "";
+  return vehicle?.placa ?? vehicle?.plate ?? "";
 }
 
-function getVehicleModel(vehicle) {
-	return vehicle?.modelo ?? vehicle?.model ?? "";
+function getVehicleLabel(vehicle) {
+  const plate = getVehiclePlate(vehicle);
+  const model = vehicle?.modelo ?? vehicle?.model ?? "";
+  return `${plate}${model ? ` · ${model}` : ""}`.trim();
 }
 
-function getTripVehicleRef(trip) {
-	return trip?.vehicle_id ?? trip?.veiculo_id ?? trip?.placa_veiculo ?? trip?.vehicle_plate ?? trip?.placa ?? "";
+function getStatusErrorMessage(error) {
+  if (error?.status === 400) {
+    const details = error?.raw?.errors && typeof error.raw.errors === "object"
+      ? Object.entries(error.raw.errors)
+          .map(([field, value]) => `${field}: ${Array.isArray(value) ? value.join(", ") : value}`)
+          .join(" | ")
+      : error?.raw?.message || error?.message || "Falha de validação";
+
+    return `Erro 400: ${details}`;
+  }
+
+  return error?.message || "Não foi possível salvar a ordem de manutenção.";
 }
 
-function getTripDistance(trip) {
-	return normalizeNumber(trip?.distance_km ?? trip?.distancia_km ?? trip?.quilometragem ?? trip?.km);
+function getDeleteErrorMessage(error) {
+  if (error?.status === 400) {
+    const details = error?.raw?.errors && typeof error.raw.errors === "object"
+      ? Object.entries(error.raw.errors)
+          .map(([field, value]) => `${field}: ${Array.isArray(value) ? value.join(", ") : value}`)
+          .join(" | ")
+      : error?.raw?.message || error?.message || "Falha de validação";
+
+    return `Erro 400: ${details}`;
+  }
+
+  return error?.message || "Não foi possível excluir a ordem de manutenção.";
 }
 
-function getTripDate(trip) {
-	return trip?.date ?? trip?.data ?? trip?.data_viagem ?? trip?.created_at ?? "";
+function MaintenanceOrderDialog({
+  open,
+  mode,
+  form,
+  setForm,
+  vehicles,
+  isSaving,
+  onClose,
+  onSubmit,
+}) {
+  const handleChange = (field) => (event) => {
+    setForm((prev) => ({ ...prev, [field]: event.target.value }));
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && onClose()}>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>{mode === "edit" ? "Editar ordem de manutenção" : "Nova ordem de manutenção"}</DialogTitle>
+          <DialogDescription>
+            {mode === "edit"
+              ? "Atualize as informações da ordem para manter o controle operacional em dia."
+              : "Crie uma nova ordem alinhada ao processo interno da operação."}
+          </DialogDescription>
+        </DialogHeader>
+
+        <form
+          className="space-y-5"
+          onSubmit={(event) => {
+            event.preventDefault();
+            onSubmit();
+          }}
+        >
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-slate-500">Veículo</Label>
+              <Select
+                value={form.veiculo_placa}
+                onValueChange={(value) => setForm((prev) => ({ ...prev, veiculo_placa: value }))}
+              >
+                <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-slate-50/50 focus:ring-2 focus:ring-blue-500/20">
+                  <SelectValue placeholder="Selecione a placa do veículo" />
+                </SelectTrigger>
+                <SelectContent>
+                  {vehicles.map((vehicle) => {
+                    const plate = getVehiclePlate(vehicle);
+                    return (
+                      <SelectItem key={plate || vehicle?.id} value={plate}>
+                        {getVehicleLabel(vehicle) || plate || "Veículo sem identificação"}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="dataInicio" className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Data de entrada
+              </Label>
+              <Input
+                id="dataInicio"
+                type="date"
+                value={form.dataInicio}
+                onChange={handleChange("dataInicio")}
+                className="h-11 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="dataPrevista" className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Previsão de saída
+              </Label>
+              <Input
+                id="dataPrevista"
+                type="date"
+                value={form.dataPrevista}
+                onChange={handleChange("dataPrevista")}
+                className="h-11 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="dataFim" className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Data de conclusão
+              </Label>
+              <Input
+                id="dataFim"
+                type="date"
+                value={form.dataFim}
+                onChange={handleChange("dataFim")}
+                className="h-11 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-slate-500">Status</Label>
+              <Select value={form.status} onValueChange={(value) => setForm((prev) => ({ ...prev, status: value }))}>
+                <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-slate-50/50 focus:ring-2 focus:ring-blue-500/20">
+                  <SelectValue placeholder="Selecione o status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATUS_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {mode === "edit" && (
+            <div className="rounded-2xl border border-slate-200/70 bg-slate-50/80 p-4 text-sm text-slate-600">
+              <span className="font-medium text-slate-900">Referência da ordem:</span> {form.idManutencao || "—"}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose} className="rounded-xl">
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              disabled={isSaving}
+              className="rounded-xl bg-blue-600 font-medium text-white shadow-sm shadow-blue-500/20 hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-500/20 active:scale-[0.98]"
+            >
+              {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Salvar
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
-const MAINTENANCE_INTERVAL_KM = 10000;
-const MAINTENANCE_STORAGE_KEY = "fleetsense_maintenance_details";
-const RISK_WEIGHTS = {
-	kmSinceInspection: 0.5,
-	inactivityDays: 0.3,
-	status: 0.2,
-};
+function DeleteOrderDialog({
+  open,
+  order,
+  onClose,
+  onConfirm,
+  isDeleting,
+}) {
+  return (
+    <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Excluir ordem de manutenção</DialogTitle>
+          <DialogDescription>
+            Deseja realmente excluir esta ordem de manutenção?
+          </DialogDescription>
+        </DialogHeader>
 
-function normalizeNumber(value) {
-	const num = Number(value);
-	return Number.isFinite(num) ? num : 0;
-}
+        <div className="rounded-2xl border border-red-200/70 bg-red-50/70 p-4 text-sm text-red-800">
+          <p className="font-semibold text-red-900">Ação permanente</p>
+          <p className="mt-1 leading-6">
+            ID <span className="font-mono text-xs">{order?.idManutencao || "—"}</span>
+            {order?.veiculo_placa ? (
+              <>
+                {" "}para o veículo <span className="font-semibold">{order.veiculo_placa}</span>
+              </>
+            ) : null}
+          </p>
+        </div>
 
-function clampPercentage(value) {
-	const normalized = normalizeNumber(value);
-	return Math.max(0, Math.min(100, normalized));
-}
-
-function formatCurrency(value) {
-	const normalized = normalizeNumber(value);
-	if (normalized <= 0) return "não informado";
-	return `R$ ${normalized.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
-function splitCsvLine(line, delimiter) {
-	const result = [];
-	let current = "";
-	let inQuotes = false;
-
-	for (let i = 0; i < line.length; i += 1) {
-		const char = line[i];
-		if (char === '"') {
-			if (inQuotes && line[i + 1] === '"') {
-				current += '"';
-				i += 1;
-			} else {
-				inQuotes = !inQuotes;
-			}
-		} else if (char === delimiter && !inQuotes) {
-			result.push(current);
-			current = "";
-		} else {
-			current += char;
-		}
-	}
-
-	result.push(current);
-	return result.map((item) => item.trim());
-}
-
-function toCsvSafe(value) {
-	const text = `${value ?? ""}`;
-	if (text.includes(";") || text.includes("\n") || text.includes('"')) {
-		return `"${text.replaceAll('"', '""')}"`;
-	}
-	return text;
-}
-
-function getStatusScore(status) {
-	if (status === "manutencao") return 100;
-	if (status === "inativo") return 65;
-	return 15;
-}
-
-function getVehicleRisk(vehicle, trips) {
-	const vehicleId = `${vehicle.id || ""}`;
-	const vehiclePlate = `${vehicle.plate || ""}`.toLowerCase();
-	const modelTrips = trips.filter((trip) => {
-		const tripRef = `${getTripVehicleRef(trip) || ""}`;
-		if (!tripRef) return false;
-		return tripRef === vehicleId || tripRef.toLowerCase() === vehiclePlate;
-	});
-	const totalKm = modelTrips.reduce((sum, trip) => sum + getTripDistance(trip), 0);
-	const lastTripDate = modelTrips
-		.map((trip) => getTripDate(trip))
-		.filter(Boolean)
-		.sort((a, b) => new Date(b) - new Date(a))[0];
-
-	const daysWithoutTrip = lastTripDate
-		? Math.floor((Date.now() - new Date(lastTripDate).getTime()) / (1000 * 60 * 60 * 24))
-		: 180;
-
-	const kmSinceInspection = totalKm % MAINTENANCE_INTERVAL_KM;
-	const kmScore = Math.min((kmSinceInspection / MAINTENANCE_INTERVAL_KM) * 100, 100);
-	const inactivityScore = Math.min((daysWithoutTrip / 90) * 100, 100);
-	const statusScore = getStatusScore(vehicle.status);
-
-	const risk =
-		kmScore * RISK_WEIGHTS.kmSinceInspection +
-		inactivityScore * RISK_WEIGHTS.inactivityDays +
-		statusScore * RISK_WEIGHTS.status;
-
-	const nextInspectionKm = Math.max(MAINTENANCE_INTERVAL_KM - kmSinceInspection, 0);
-
-	let level = "baixo";
-	if (risk >= 75) {
-		level = "critico";
-	} else if (risk >= 45) {
-		level = "moderado";
-	}
-
-	return {
-		risk: Math.min(Math.round(risk), 100),
-		level,
-		totalKm,
-		daysWithoutTrip,
-		kmSinceInspection,
-		kmScore: Math.round(kmScore),
-		inactivityScore: Math.round(inactivityScore),
-		statusScore: Math.round(statusScore),
-		nextInspectionKm,
-	};
-}
-
-function getRiskBadge(level) {
-	if (level === "critico") return { label: "Crítico", className: "bg-destructive text-destructive-foreground" };
-	if (level === "moderado") return { label: "Moderado", className: "bg-chart-3 text-white" };
-	return { label: "Baixo", className: "bg-chart-2 text-white" };
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onClose} className="rounded-xl">
+            Cancelar
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            disabled={isDeleting}
+            onClick={onConfirm}
+            className="rounded-xl bg-red-600 font-medium text-white shadow-sm shadow-red-500/20 hover:bg-red-700 hover:shadow-lg hover:shadow-red-500/20 active:scale-[0.98]"
+          >
+            {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Excluir
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 export default function Maintenance() {
-	const [search, setSearch] = useState("");
-	const [statusFilter, setStatusFilter] = useState("todos");
-	const [maintenanceDetails, setMaintenanceDetails] = useState({});
-	const [isOrderDialogOpen, setIsOrderDialogOpen] = useState(false);
-	const [selectedVehicleId, setSelectedVehicleId] = useState(null);
-	const [orderDraft, setOrderDraft] = useState({ description: "", cost: "", progress: "" });
-	const csvInputRef = useRef(null);
+  const queryClient = useQueryClient();
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("todos");
+  const [isOrderDialogOpen, setIsOrderDialogOpen] = useState(false);
+  const [editingOrder, setEditingOrder] = useState(null);
+  const [orderToDelete, setOrderToDelete] = useState(null);
+  const [form, setForm] = useState(emptyForm);
 
-	useEffect(() => {
-		try {
-			const stored = localStorage.getItem(MAINTENANCE_STORAGE_KEY);
-			if (stored) {
-				setMaintenanceDetails(JSON.parse(stored));
-			}
-		} catch {
-			setMaintenanceDetails({});
-		}
-	}, []);
+  const { data: vehicles = [], isLoading: vehiclesLoading } = useQuery({
+    queryKey: ["vehicles"],
+    queryFn: vehiclesApi.list,
+  });
 
-	useEffect(() => {
-		localStorage.setItem(MAINTENANCE_STORAGE_KEY, JSON.stringify(maintenanceDetails));
-	}, [maintenanceDetails]);
+  const { data: maintenanceOrders = [], isLoading: ordersLoading } = useQuery({
+    queryKey: ["maintenance-orders"],
+    queryFn: maintenanceApi.list,
+  });
 
-	const updateMaintenanceDetail = (vehicleId, patch) => {
-		setMaintenanceDetails((prev) => ({
-			...prev,
-			[vehicleId]: {
-				description: "",
-				cost: "",
-				progress: 0,
-				...prev[vehicleId],
-				...patch,
-			},
-		}));
-	};
+  const syncVehicleStatusForMaintenance = async (payload) => {
+    const maintenanceStatus = normalizeStatus(payload?.status);
+    const placa = `${payload?.veiculo_placa ?? ""}`.trim();
 
-	const openMaintenanceOrder = (vehicleId) => {
-		setSelectedVehicleId(vehicleId);
-		setIsOrderDialogOpen(true);
-	};
+    if (maintenanceStatus !== "em andamento" || !placa) return;
 
-	const { data: vehicles = [], isLoading: vehiclesLoading } = useQuery({
-		queryKey: ["vehicles"],
-		queryFn: vehiclesApi.list,
-	});
+    console.log("Disparando atualização do veículo:", placa);
+    await vehiclesApi.update(placa, { status: "Em manutenção" });
+  };
 
-	const { data: trips = [] } = useQuery({
-		queryKey: ["trips"],
-		queryFn: tripsApi.list,
-	});
+  const createMutation = useMutation({
+    mutationFn: async (payload) => {
+      const savedMaintenance = await maintenanceApi.create(payload);
+      await syncVehicleStatusForMaintenance(payload);
 
-	const maintenanceRows = useMemo(() => {
-		return vehicles
-			.map((vehicle) => ({
-				vehicle: {
-					...vehicle,
-					id: getVehicleId(vehicle),
-					plate: getVehiclePlate(vehicle),
-					model: getVehicleModel(vehicle),
-					status: normalizeVehicleStatus(vehicle?.status),
-				},
-				...getVehicleRisk(
-					{
-						...vehicle,
-						id: getVehicleId(vehicle),
-						plate: getVehiclePlate(vehicle),
-						model: getVehicleModel(vehicle),
-						status: normalizeVehicleStatus(vehicle?.status),
-					},
-					trips
-				),
-			}))
-			.sort((a, b) => b.risk - a.risk);
-	}, [vehicles, trips]);
+      return savedMaintenance;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["maintenance-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["vehicles"] });
+      setIsOrderDialogOpen(false);
+      setEditingOrder(null);
+      setForm(emptyForm);
+      toast({ title: "Ordem criada", description: "A ordem de manutenção foi salva com sucesso." });
+    },
+    onError: (error) => {
+      toast({ title: "Erro ao criar ordem", description: getStatusErrorMessage(error), variant: "destructive" });
+    },
+  });
 
-	const filteredRows = useMemo(() => {
-		const term = search.trim().toLowerCase();
-		return maintenanceRows.filter(({ vehicle }) => {
-			const matchesStatus = statusFilter === "todos" || vehicle.status === statusFilter;
-			const vehicleName = `${vehicle.model || ""} ${vehicle.plate || ""}`.toLowerCase();
-			const matchesSearch = !term || vehicleName.includes(term);
-			return matchesStatus && matchesSearch;
-		});
-	}, [maintenanceRows, search, statusFilter]);
+  const updateMutation = useMutation({
+    mutationFn: async ({ idManutencao, payload }) => {
+      const savedMaintenance = await maintenanceApi.update(idManutencao, payload);
+      await syncVehicleStatusForMaintenance(payload);
 
-	const summary = useMemo(() => {
-		const critical = maintenanceRows.filter((row) => row.level === "critico").length;
-		const moderate = maintenanceRows.filter((row) => row.level === "moderado").length;
-		const inMaintenance = maintenanceRows.filter(({ vehicle }) => vehicle.status === "manutencao").length;
-		const healthRate = maintenanceRows.length
-			? Math.round(
-					(maintenanceRows.filter((row) => row.level === "baixo").length / maintenanceRows.length) * 100
-				)
-			: 100;
+      return savedMaintenance;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["maintenance-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["vehicles"] });
+      setIsOrderDialogOpen(false);
+      setEditingOrder(null);
+      setForm(emptyForm);
+      toast({ title: "Ordem atualizada", description: "As alterações foram salvas com sucesso." });
+    },
+    onError: (error) => {
+      toast({ title: "Erro ao atualizar ordem", description: getStatusErrorMessage(error), variant: "destructive" });
+    },
+  });
 
-		return { critical, moderate, inMaintenance, healthRate };
-	}, [maintenanceRows, vehicles]);
+  const deleteMutation = useMutation({
+    mutationFn: (idManutencao) => maintenanceApi.delete(idManutencao),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["maintenance-orders"] });
+      setOrderToDelete(null);
+      toast({ title: "Ordem excluída", description: "A ordem de manutenção foi removida com sucesso." });
+    },
+    onError: (error) => {
+      toast({ title: "Erro ao excluir ordem", description: getDeleteErrorMessage(error), variant: "destructive" });
+    },
+  });
 
-	const priorityRows = filteredRows.slice(0, 3);
-	const inMaintenanceRows = useMemo(() => {
-		return maintenanceRows.filter(({ vehicle }) => vehicle.status === "manutencao");
-	}, [maintenanceRows]);
+  useEffect(() => {
+    if (!isOrderDialogOpen) return;
 
-	const selectedRow = useMemo(() => {
-		return maintenanceRows.find(({ vehicle }) => vehicle.id === selectedVehicleId) || null;
-	}, [maintenanceRows, selectedVehicleId]);
+    if (editingOrder) {
+      setForm({
+        idManutencao: getOrderId(editingOrder),
+        veiculo_placa: editingOrder.veiculo_placa || "",
+        dataInicio: formatDateInput(editingOrder.dataInicio),
+        dataPrevista: formatDateInput(editingOrder.dataPrevista),
+        dataFim: formatDateInput(editingOrder.dataFim),
+        status: editingOrder.status || "Pendente",
+      });
+      return;
+    }
 
-	const selectedDetails = selectedVehicleId
-		? maintenanceDetails[selectedVehicleId] || { description: "", cost: "", progress: 0 }
-		: { description: "", cost: "", progress: 0 };
+    setForm(emptyForm);
+  }, [editingOrder, isOrderDialogOpen]);
 
-	useEffect(() => {
-		if (!isOrderDialogOpen || !selectedVehicleId) return;
-		const draftProgress =
-			selectedDetails.progress === "" || selectedDetails.progress === null || selectedDetails.progress === undefined
-				? ""
-				: clampPercentage(selectedDetails.progress);
+  const orders = useMemo(() => {
+    return maintenanceOrders
+      .map((order) => ({
+        ...order,
+        idManutencao: getOrderId(order),
+        veiculo_placa: order.veiculo_placa || order.veiculoPlaca || order.placa || "",
+        dataInicio: formatDateInput(order.dataInicio),
+        dataPrevista: formatDateInput(order.dataPrevista),
+        dataFim: formatDateInput(order.dataFim),
+        status: order.status || "Pendente",
+      }))
+      .sort((a, b) => Number(b.idManutencao || 0) - Number(a.idManutencao || 0));
+  }, [maintenanceOrders]);
 
-		setOrderDraft({
-			description: selectedDetails.description || "",
-			cost: selectedDetails.cost || "",
-			progress: draftProgress,
-		});
-	}, [isOrderDialogOpen, selectedVehicleId, selectedDetails.cost, selectedDetails.description, selectedDetails.progress]);
+  const filteredOrders = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return orders.filter((order) => {
+      const matchesStatus = statusFilter === "todos" || normalizeStatus(order.status) === statusFilter;
+      const matchesSearch =
+        !term ||
+        `${order.veiculo_placa || ""}`.toLowerCase().includes(term) ||
+        `${order.idManutencao || ""}`.toLowerCase().includes(term);
+      return matchesStatus && matchesSearch;
+    });
+  }, [orders, search, statusFilter]);
 
-	const selectedProgress = orderDraft.progress === "" ? 0 : clampPercentage(orderDraft.progress);
+  const summary = useMemo(() => {
+    const pending = orders.filter((order) => normalizeStatus(order.status) === "pendente").length;
+    const inProgress = orders.filter((order) => normalizeStatus(order.status) === "em andamento").length;
+    const completed = orders.filter((order) => normalizeStatus(order.status) === "concluída" || normalizeStatus(order.status) === "concluida").length;
+    const overdue = orders.filter((order) => {
+      if (order.dataFim) return false;
+      if (!order.dataPrevista) return false;
+      return new Date(order.dataPrevista).getTime() < Date.now();
+    }).length;
 
-	const handleSaveOrder = () => {
-		if (!selectedVehicleId) return;
-		const savedProgress = orderDraft.progress === "" ? 0 : clampPercentage(orderDraft.progress);
-		updateMaintenanceDetail(selectedVehicleId, {
-			description: orderDraft.description,
-			cost: orderDraft.cost,
-			progress: savedProgress,
-		});
-		toast({
-			title: "Ordem salva",
-			description: "Descrição, custo e andamento atualizados com sucesso.",
-		});
-	};
+    return {
+      total: orders.length,
+      pending,
+      inProgress,
+      completed,
+      overdue,
+    };
+  }, [orders]);
 
-	const handleExportCsv = () => {
-		if (!selectedRow) return;
-		const headers = ["vehicle_id", "plate", "model", "status", "description", "cost", "progress", "risk"];
-		const values = [
-			selectedRow.vehicle.id,
-			selectedRow.vehicle.plate || "",
-			selectedRow.vehicle.model || "",
-			selectedRow.vehicle.status || "",
-			orderDraft.description || "",
-			normalizeNumber(orderDraft.cost),
-			orderDraft.progress === "" ? 0 : clampPercentage(orderDraft.progress),
-			selectedRow.risk,
-		];
-		const csvContent = `${headers.join(";")}\n${values.map(toCsvSafe).join(";")}`;
-		const blob = new Blob([`\uFEFF${csvContent}`], { type: "text/csv;charset=utf-8;" });
-		const url = URL.createObjectURL(blob);
-		const fileName = `ordem_manutencao_${selectedRow.vehicle.plate || selectedRow.vehicle.id}.csv`;
+  const handleCreateNew = () => {
+    setEditingOrder(null);
+    setForm(emptyForm);
+    setIsOrderDialogOpen(true);
+  };
 
-		const link = document.createElement("a");
-		link.href = url;
-		link.setAttribute("download", fileName);
-		document.body.appendChild(link);
-		link.click();
-		link.remove();
-		URL.revokeObjectURL(url);
-	};
+  const handleEditOrder = (order) => {
+    setEditingOrder(order);
+    setIsOrderDialogOpen(true);
+  };
 
-	const handleImportCsv = async (event) => {
-		const file = event.target.files?.[0];
-		if (!file) return;
+  const handleDeleteOrder = (order) => {
+    setOrderToDelete(order);
+  };
 
-		try {
-			const content = await file.text();
-			const lines = content
-				.split(/\r?\n/)
-				.map((line) => line.trim())
-				.filter(Boolean);
+  const confirmDeleteOrder = () => {
+    if (!orderToDelete) return;
+    deleteMutation.mutate(getOrderId(orderToDelete));
+  };
 
-			if (lines.length < 2) {
-				throw new Error("CSV sem dados suficientes.");
-			}
+  const handleSave = () => {
+    if (!form.veiculo_placa || !form.dataInicio || !form.dataPrevista || !form.status) {
+      toast({
+        title: "Campos obrigatórios",
+        description: "Preencha veículo, data de entrada, previsão e status.",
+        variant: "destructive",
+      });
+      return;
+    }
 
-			const delimiter = lines[0].includes(";") ? ";" : ",";
-			const headers = splitCsvLine(lines[0], delimiter).map((header) =>
-				header.toLowerCase().replace(/^\uFEFF/, "")
-			);
-			const data = splitCsvLine(lines[1], delimiter);
+    const payload = {
+      ...form,
+      idManutencao: editingOrder ? Number(form.idManutencao || getOrderId(editingOrder)) : 0,
+      dataFim: form.dataFim || "",
+      dataInicio: form.dataInicio,
+      dataPrevista: form.dataPrevista,
+      status: form.status,
+      veiculo_placa: form.veiculo_placa,
+    };
 
-			const getValue = (aliases) => {
-				const index = headers.findIndex((header) => aliases.includes(header));
-				return index >= 0 ? data[index] || "" : "";
-			};
+    if (editingOrder) {
+      updateMutation.mutate({ idManutencao: getOrderId(editingOrder), payload });
+      return;
+    }
 
-			const importedDescription = getValue(["description", "descricao"]);
-			const importedCost = getValue(["cost", "custo"]);
-			const importedProgress = getValue(["progress", "andamento"]);
+    createMutation.mutate(payload);
+  };
 
-			setOrderDraft((prev) => ({
-				...prev,
-				description: importedDescription || prev.description,
-				cost: importedCost || prev.cost,
-				progress: importedProgress === "" ? prev.progress : clampPercentage(importedProgress),
-			}));
+  return (
+    <div className="space-y-5 sm:space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <div className="mb-2 inline-flex items-center gap-2 rounded-full border bg-muted/30 px-3 py-1 text-xs font-medium text-muted-foreground">
+            <Wrench className="h-3.5 w-3.5" />
+            Painel Atualizado
+          </div>
+          <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Manutenção</h1>
+          <p className="mt-1 text-muted-foreground">Acompanhe ordens, status e prazos em tempo real.</p>
+        </div>
 
-			toast({
-				title: "CSV importado",
-				description: "Os campos da ordem foram preenchidos com os dados do arquivo.",
-			});
-		} catch (error) {
-			toast({
-				title: "Erro ao importar CSV",
-				description: error.message || "Não foi possível ler o arquivo.",
-				variant: "destructive",
-			});
-		} finally {
-			event.target.value = "";
-		}
-	};
+        <Button onClick={handleCreateNew} className="sm:self-start">
+          <Plus className="mr-2 h-4 w-4" />
+          Nova Ordem
+        </Button>
+      </div>
 
-	return (
-		<div className="space-y-5 sm:space-y-6">
-			<div>
-				<h1 className="text-xl font-bold tracking-tight sm:text-2xl">Manutenção</h1>
-				<p className="text-muted-foreground mt-1">
-					Controle preventivo com prioridade por risco operacional
-				</p>
-			</div>
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <Card className="border-0 shadow-sm">
+          <CardHeader className="pb-2">
+            <CardDescription>Total de ordens</CardDescription>
+            <CardTitle className="text-2xl">{summary.total}</CardTitle>
+          </CardHeader>
+          <CardContent className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Wrench className="h-4 w-4 text-primary" />
+            Registradas no sistema
+          </CardContent>
+        </Card>
 
-			<div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-				<Card>
-					<CardHeader className="pb-2">
-						<CardDescription>Risco crítico</CardDescription>
-						<CardTitle className="text-2xl">{summary.critical}</CardTitle>
-					</CardHeader>
-					<CardContent className="flex items-center gap-2 text-sm text-muted-foreground">
-						<AlertTriangle className="h-4 w-4 text-destructive" />
-						Veículos que exigem atenção imediata
-					</CardContent>
-				</Card>
+        <Card className="border-0 shadow-sm">
+          <CardHeader className="pb-2">
+            <CardDescription>Pendentes</CardDescription>
+            <CardTitle className="text-2xl">{summary.pending}</CardTitle>
+          </CardHeader>
+          <CardContent className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Clock3 className="h-4 w-4 text-amber-500" />
+            Aguardando início
+          </CardContent>
+        </Card>
 
-				<Card>
-					<CardHeader className="pb-2">
-						<CardDescription>Risco moderado</CardDescription>
-						<CardTitle className="text-2xl">{summary.moderate}</CardTitle>
-					</CardHeader>
-					<CardContent className="flex items-center gap-2 text-sm text-muted-foreground">
-						<Wrench className="h-4 w-4 text-chart-3" />
-						Agende revisão preventiva
-					</CardContent>
-				</Card>
+        <Card className="border-0 shadow-sm">
+          <CardHeader className="pb-2">
+            <CardDescription>Em andamento</CardDescription>
+            <CardTitle className="text-2xl">{summary.inProgress}</CardTitle>
+          </CardHeader>
+          <CardContent className="flex items-center gap-2 text-sm text-muted-foreground">
+            <CalendarClock className="h-4 w-4 text-blue-500" />
+            Em execução na oficina
+          </CardContent>
+        </Card>
 
-				<Card>
-					<CardHeader className="pb-2">
-						<CardDescription>Em manutenção</CardDescription>
-						<CardTitle className="text-2xl">{summary.inMaintenance}</CardTitle>
-					</CardHeader>
-					<CardContent className="flex items-center gap-2 text-sm text-muted-foreground">
-						<CalendarClock className="h-4 w-4 text-primary" />
-						Frota indisponível no momento
-					</CardContent>
-				</Card>
+        <Card className="border-0 shadow-sm">
+          <CardHeader className="pb-2">
+            <CardDescription>Concluídas</CardDescription>
+            <CardTitle className="text-2xl">{summary.completed}</CardTitle>
+          </CardHeader>
+          <CardContent className="flex items-center gap-2 text-sm text-muted-foreground">
+            <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+            Finalizadas com sucesso
+          </CardContent>
+        </Card>
+      </div>
 
-				<Card>
-					<CardHeader className="pb-2">
-						<CardDescription>Saúde da frota</CardDescription>
-						<CardTitle className="text-2xl">{summary.healthRate}%</CardTitle>
-					</CardHeader>
-					<CardContent className="space-y-2">
-						<Progress value={summary.healthRate} />
-						<p className="flex items-center gap-2 text-sm text-muted-foreground">
-							<CheckCircle2 className="h-4 w-4 text-chart-2" />
-							Proporção de veículos com baixo risco
-						</p>
-					</CardContent>
-				</Card>
-			</div>
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-5">
+        <Card className="xl:col-span-3 border-0 shadow-sm">
+          <CardHeader className="pb-3">
+            <CardTitle>Lista de manutenções</CardTitle>
+            <CardDescription>Listagem completa das ordens de serviço ativas e finalizadas.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <div className="relative flex-1">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Buscar por placa ou ID"
+                  className="pl-9"
+                />
+              </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full sm:w-[180px]">
+                  <SelectValue placeholder="Filtrar status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos</SelectItem>
+                  <SelectItem value="pendente">Pendente</SelectItem>
+                  <SelectItem value="em andamento">Em andamento</SelectItem>
+                  <SelectItem value="concluída">Concluída</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-			<div className="grid grid-cols-1 gap-4 xl:grid-cols-5">
-				<Card className="xl:col-span-3">
-					<CardHeader className="pb-3">
-						<CardTitle>Agenda sugerida</CardTitle>
-						<CardDescription>
-							Risco = 50% km desde revisão + 30% tempo sem uso + 20% status
-						</CardDescription>
-					</CardHeader>
-					<CardContent className="space-y-4">
-						<div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-							<div className="relative flex-1">
-								<Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-								<Input
-									value={search}
-									onChange={(event) => setSearch(event.target.value)}
-									placeholder="Buscar por modelo ou placa"
-									className="pl-9"
-								/>
-							</div>
-							<Select value={statusFilter} onValueChange={setStatusFilter}>
-								<SelectTrigger className="w-full sm:w-[180px]">
-									<SelectValue placeholder="Filtrar status" />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem key="status-todos" value="todos">Todos</SelectItem>
-									<SelectItem key="status-ativo" value="ativo">Ativo</SelectItem>
-									<SelectItem key="status-manutencao" value="manutencao">Em manutenção</SelectItem>
-									<SelectItem key="status-inativo" value="inativo">Inativo</SelectItem>
-								</SelectContent>
-							</Select>
-						</div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>ID</TableHead>
+                  <TableHead>Veículo</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Início</TableHead>
+                  <TableHead>Prevista</TableHead>
+                  <TableHead>Fim</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {ordersLoading && (
+                  <TableRow>
+                    <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
+                      Carregando manutenções...
+                    </TableCell>
+                  </TableRow>
+                )}
 
-						<Table>
-							<TableHeader>
-								<TableRow>
-									<TableHead>Veículo</TableHead>
-									<TableHead>Status</TableHead>
-									<TableHead>Risco</TableHead>
-									<TableHead>Detalhes manutenção</TableHead>
-									<TableHead>Próxima revisão</TableHead>
-									<TableHead className="text-right">Km rodados</TableHead>
-								</TableRow>
-							</TableHeader>
-							<TableBody>
-								{vehiclesLoading && (
-									<TableRow>
-										<TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
-											Carregando plano de manutenção...
-										</TableCell>
-									</TableRow>
-								)}
+                {!ordersLoading && filteredOrders.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
+                      Nenhuma manutenção encontrada para os filtros selecionados.
+                    </TableCell>
+                  </TableRow>
+                )}
 
-								{!vehiclesLoading && filteredRows.length === 0 && (
-									<TableRow>
-										<TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
-											Nenhum veículo encontrado para os filtros selecionados.
-										</TableCell>
-									</TableRow>
-								)}
+                {filteredOrders.map((order) => {
+                  const statusKey = normalizeStatus(order.status);
+                  const badgeClass = STATUS_BADGE[statusKey] || "border-slate-200 bg-slate-50 text-slate-700";
+                  const rowKey = order.idManutencao || `${order.veiculo_placa}-${order.dataInicio}`;
 
-								{filteredRows.map(({ vehicle, risk, level, totalKm, kmSinceInspection, kmScore, inactivityScore, statusScore, nextInspectionKm }, i) => {
-									const badge = getRiskBadge(level);
-									const details = maintenanceDetails[vehicle.id] || {};
-									const progress = clampPercentage(details.progress);
-									const hasDescription = Boolean(details.description?.trim());
-									const rowKey = vehicle?.id || vehicle?.placa || `${vehicle?.modelo || 'veh'}-${i}`;
-									return (
-										<TableRow key={rowKey}>
-											<TableCell>
-												<button
-													type="button"
-													onClick={() => openMaintenanceOrder(vehicle.id)}
-													className="group -m-1 rounded-md p-1 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-													title="Abrir ordem de manutenção"
-												>
-													<div className="font-medium text-primary underline underline-offset-2 decoration-primary/60 group-hover:text-primary/80">{vehicle.model || "Sem modelo"}</div>
-													<div className="text-xs text-muted-foreground group-hover:text-foreground/80">{vehicle.plate || "Sem placa"}</div>
-													<div className="text-[11px] font-medium text-primary/70">Clique para editar ordem</div>
-												</button>
-											</TableCell>
-											<TableCell>
-												<Badge variant="secondary">{statusLabel[vehicle.status] || "Sem status"}</Badge>
-											</TableCell>
-											<TableCell>
-												<div className="space-y-2">
-													<Badge className={badge.className}>{badge.label}</Badge>
-													<Progress value={risk} className="h-1.5" />
-													<p className="text-[11px] text-muted-foreground">
-														Km {kmScore}% · Inatividade {inactivityScore}% · Status {statusScore}%
-													</p>
-												</div>
-											</TableCell>
-											<TableCell>
-												{vehicle.status !== "manutencao" && (
-													<span className="text-xs text-muted-foreground">Sem manutenção ativa</span>
-												)}
-												{vehicle.status === "manutencao" && (
-													<div className="space-y-1">
-														<p className="text-xs text-muted-foreground">
-															{hasDescription ? details.description : "Adicione uma descrição no painel lateral."}
-														</p>
-														<p className="text-xs text-muted-foreground">
-															Custo: {formatCurrency(details.cost)}
-														</p>
-														<p className="text-xs text-muted-foreground">Andamento: {progress}%</p>
-													</div>
-												)}
-											</TableCell>
-											<TableCell>
-												{nextInspectionKm <= 1200
-													? `Revisar em ${Math.round(nextInspectionKm)} km`
-													: `${Math.round(nextInspectionKm)} km restantes`}
-												<p className="text-[11px] text-muted-foreground">
-													Rodados desde revisão: {Math.round(kmSinceInspection).toLocaleString("pt-BR")} km
-												</p>
-											</TableCell>
-											<TableCell className="text-right">{Math.round(totalKm).toLocaleString("pt-BR")} km</TableCell>
-										</TableRow>
-									);
-								})}
-							</TableBody>
-						</Table>
-					</CardContent>
-				</Card>
+                  return (
+                    <TableRow key={rowKey}>
+                      <TableCell className="font-mono text-xs">{order.idManutencao || "—"}</TableCell>
+                      <TableCell>
+                        <div className="space-y-0.5">
+                          <p className="font-medium text-foreground">{order.veiculo_placa || "—"}</p>
+                          <p className="text-xs text-muted-foreground">{statusKey || "sem status"}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={`rounded-full px-2.5 py-1 text-xs font-semibold ${badgeClass}`}>
+                          {order.status || "—"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{formatDateDisplay(order.dataInicio)}</TableCell>
+                      <TableCell>{formatDateDisplay(order.dataPrevista)}</TableCell>
+                      <TableCell>{formatDateDisplay(order.dataFim)}</TableCell>
+                      <TableCell>
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEditOrder(order)}
+                          >
+                            <Pencil className="mr-2 h-3.5 w-3.5" />
+                            Editar ordem
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={() => handleDeleteOrder(order)}
+                            className="border-red-200 bg-white text-red-600 hover:border-red-300 hover:bg-red-50 hover:text-red-700"
+                            aria-label="Excluir ordem de manutenção"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
 
-				<Card className="xl:col-span-2">
-					<CardHeader className="pb-3">
-						<CardTitle>Ordens em manutenção</CardTitle>
-						<CardDescription>
-							Descrição, custo e andamento dos veículos em oficina
-						</CardDescription>
-					</CardHeader>
-					<CardContent className="space-y-3">
-						{inMaintenanceRows.length === 0 && (
-							<p className="text-sm text-muted-foreground">Nenhum veículo com status em manutenção.</p>
-						)}
+        <Card className="xl:col-span-2 border-0 shadow-sm">
+          <CardHeader className="pb-3">
+            <CardTitle>Resumo operacional</CardTitle>
+            <CardDescription>Situação atual das ordens de manutenção</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="rounded-2xl border border-slate-200/70 bg-slate-50/80 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Atrasadas</p>
+              <p className="mt-2 text-2xl font-bold text-slate-900">{summary.overdue}</p>
+              <p className="mt-1 text-sm text-slate-600">Ordens com previsão vencida e sem data de conclusão.</p>
+            </div>
 
-						{inMaintenanceRows.map(({ vehicle }, i) => {
-							const details = maintenanceDetails[vehicle.id] || { description: "", cost: "", progress: 0 };
-							const progress = clampPercentage(details.progress);
-							const rowKey = vehicle?.id || vehicle?.plate || `${vehicle?.model || 'veh'}-in-${i}`;
-							return (
-								<div key={rowKey} className="rounded-lg border border-border/80 bg-muted/20 p-3 space-y-2.5">
-									<div>
-										<p className="text-sm font-semibold leading-tight">{vehicle.model || "Sem modelo"}</p>
-										<p className="text-xs text-muted-foreground">{vehicle.plate || "Sem placa"}</p>
-									</div>
+            <div className="rounded-2xl border border-slate-200/70 bg-slate-50/80 p-4 text-sm text-slate-600">
+              <p className="font-medium text-slate-900">Dica de Gestão</p>
+              <p className="mt-2 leading-6">
+                Mantenha a descrição dos serviços detalhada no momento da edição para facilitar auditorias futuras e controle de custos.
+              </p>
+            </div>
 
-									<p className="text-xs text-muted-foreground">
-										{details.description?.trim() || "Sem descrição registrada."}
-									</p>
-									<p className="text-xs text-muted-foreground">Custo: {formatCurrency(details.cost)}</p>
-									<Progress value={progress} className="h-1.5" />
-									<p className="text-xs text-muted-foreground">Andamento atual: {progress}%</p>
-									<Button
-										variant="outline"
-										size="sm"
-										className="w-full"
-										onClick={() => openMaintenanceOrder(vehicle.id)}
-									>
-										Editar ordem
-									</Button>
-								</div>
-							);
-						})}
+            <div className="rounded-2xl border border-slate-200/70 bg-slate-50/80 p-4 text-sm text-slate-600">
+              <p className="font-medium text-slate-900">Veículos disponíveis</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {vehiclesLoading ? "Carregando veículos..." : `${vehicles.length} veículo(s) pronto(s) para seleção.`}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
-						<CardHeader className="px-0 pt-2 pb-0">
-							<CardTitle>Top prioridades</CardTitle>
-							<CardDescription>Itens para a próxima janela de manutenção</CardDescription>
-						</CardHeader>
+      <MaintenanceOrderDialog
+        open={isOrderDialogOpen}
+        mode={editingOrder ? "edit" : "create"}
+        form={form}
+        setForm={setForm}
+        vehicles={vehicles}
+        isSaving={createMutation.isPending || updateMutation.isPending}
+        onClose={() => {
+          setIsOrderDialogOpen(false);
+          setEditingOrder(null);
+          setForm(emptyForm);
+        }}
+        onSubmit={handleSave}
+      />
 
-						<div className="rounded-lg border border-border/80 bg-muted/20 p-3 text-xs text-muted-foreground">
-							<p className="font-medium text-foreground">Critério de risco</p>
-							<p>50%: km desde a última revisão (ciclo de 10.000 km)</p>
-							<p>30%: dias sem viagem (escala até 90 dias)</p>
-							<p>20%: status atual do veículo</p>
-							<p className="mt-1">Faixas: 0-44 baixo, 45-74 moderado, 75-100 crítico.</p>
-						</div>
-
-						{priorityRows.length === 0 && (
-							<p className="text-sm text-muted-foreground">
-								Sem veículos críticos no momento.
-							</p>
-						)}
-
-						{priorityRows.map(({ vehicle, risk, level, daysWithoutTrip, kmSinceInspection }, i) => {
-							const badge = getRiskBadge(level);
-							const rowKey = vehicle?.id || vehicle?.plate || `${vehicle?.model || 'veh'}-pr-${i}`;
-							return (
-								<div
-									key={rowKey}
-									className="rounded-lg border border-border/80 bg-muted/20 p-3"
-								>
-									<div className="mb-2 flex items-start justify-between gap-2">
-										<div>
-											<p className="text-sm font-semibold leading-tight">{vehicle.model || "Sem modelo"}</p>
-											<p className="text-xs text-muted-foreground">{vehicle.plate || "Sem placa"}</p>
-										</div>
-										<Badge className={badge.className}>{badge.label}</Badge>
-									</div>
-									<div className="space-y-1 text-xs text-muted-foreground">
-										<p className="flex items-center gap-1">
-											<Gauge className="h-3.5 w-3.5" />
-											Índice de risco: {risk}%
-										</p>
-										<p>
-											Km desde revisão: {Math.round(kmSinceInspection).toLocaleString("pt-BR")} km
-										</p>
-										<p>
-											Tempo sem viagem: {daysWithoutTrip} dias
-										</p>
-									</div>
-									<Button
-										variant="outline"
-										size="sm"
-										className="mt-3 w-full"
-										onClick={() => openMaintenanceOrder(vehicle.id)}
-									>
-										Agendar revisão
-									</Button>
-								</div>
-							);
-						})}
-					</CardContent>
-				</Card>
-			</div>
-
-			<Dialog open={isOrderDialogOpen} onOpenChange={setIsOrderDialogOpen}>
-				<DialogContent className="sm:max-w-xl">
-					<DialogHeader>
-						<DialogTitle>Ordem de manutenção</DialogTitle>
-						<DialogDescription>
-							{selectedRow
-								? `${selectedRow.vehicle.modelo || "Sem modelo"} · ${selectedRow.vehicle.placa || "Sem placa"}`
-								: "Selecione um veículo para editar a ordem."}
-						</DialogDescription>
-					</DialogHeader>
-
-					{selectedRow && (
-						<div className="space-y-4">
-							<div className="grid grid-cols-1 gap-2 rounded-lg border border-border/80 bg-muted/20 p-3 text-xs text-muted-foreground sm:grid-cols-3">
-								<p>Risco atual: <span className="font-semibold text-foreground">{selectedRow.risk}%</span></p>
-								<p>Km desde revisão: <span className="font-semibold text-foreground">{Math.round(selectedRow.kmSinceInspection).toLocaleString("pt-BR")} km</span></p>
-								<p>Tempo sem viagem: <span className="font-semibold text-foreground">{selectedRow.daysWithoutTrip} dias</span></p>
-							</div>
-
-							<div>
-								<p className="mb-1 text-sm font-medium">Descrição do serviço</p>
-								<Textarea
-									value={orderDraft.description || ""}
-									onChange={(event) =>
-										setOrderDraft((prev) => ({ ...prev, description: event.target.value }))
-									}
-									placeholder="Ex.: troca de pastilha de freio e inspeção de suspensão"
-									className="min-h-[96px]"
-								/>
-							</div>
-
-							<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-								<div>
-									<p className="mb-1 text-sm font-medium">Custo estimado (R$)</p>
-									<Input
-										type="number"
-										min="0"
-										step="0.01"
-										value={orderDraft.cost || ""}
-										onChange={(event) =>
-											setOrderDraft((prev) => ({ ...prev, cost: event.target.value }))
-										}
-										placeholder="0,00"
-									/>
-								</div>
-
-								<div>
-									<p className="mb-1 text-sm font-medium">Andamento (%)</p>
-									<Input
-										type="number"
-										min="0"
-										max="100"
-										value={orderDraft.progress}
-										onChange={(event) => {
-											const rawValue = event.target.value;
-											setOrderDraft((prev) => ({
-												...prev,
-												progress: rawValue === "" ? "" : clampPercentage(rawValue),
-											}));
-										}}
-										onBlur={() => {
-											if (orderDraft.progress === "") return;
-											setOrderDraft((prev) => ({ ...prev, progress: clampPercentage(prev.progress) }));
-										}}
-									/>
-								</div>
-							</div>
-
-							<input
-								ref={csvInputRef}
-								type="file"
-								accept=".csv,text/csv"
-								onChange={handleImportCsv}
-								className="hidden"
-							/>
-
-							<Progress value={selectedProgress} />
-							<p className="text-xs text-muted-foreground">Andamento atual: {selectedProgress}%</p>
-
-							<div className="flex flex-wrap gap-2">
-								<Button variant="outline" onClick={() => csvInputRef.current?.click()}>
-									Importar CSV
-								</Button>
-								<Button variant="outline" onClick={handleExportCsv}>
-									Exportar CSV
-								</Button>
-							</div>
-						</div>
-					)}
-
-					<DialogFooter>
-						<Button onClick={handleSaveOrder}>Salvar</Button>
-						<Button variant="outline" onClick={() => setIsOrderDialogOpen(false)}>
-							Fechar
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
-		</div>
-	);
+      <DeleteOrderDialog
+        open={Boolean(orderToDelete)}
+        order={orderToDelete}
+        onClose={() => setOrderToDelete(null)}
+        onConfirm={confirmDeleteOrder}
+        isDeleting={deleteMutation.isPending}
+      />
+    </div>
+  );
 }

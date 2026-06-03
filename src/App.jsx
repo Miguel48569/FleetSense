@@ -14,7 +14,29 @@ import Maintenance from "@/pages/Maintenance";
 import Reports from "@/pages/Reports";
 import Chat from "@/pages/Chat";
 import Login from "@/pages/Login";
-import Register from "@/pages/Register";
+import Users from "@/pages/Users";
+
+function AdminOnlyRoute({ children }) {
+  const { user, isLoadingAuth } = useAuth();
+
+  if (isLoadingAuth) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <p className="text-sm text-muted-foreground">Validando permissões...</p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (user?.cargo !== "administrador") {
+    return <Navigate to="/" replace />;
+  }
+
+  return children;
+}
 
 // PROTEÇÃO DE ROTAS DESATIVADA - BACKEND NÃO IMPLEMENTOU AUTENTICAÇÃO
 // function AuthenticatedRoute({ children }) {
@@ -53,12 +75,19 @@ function App() {
       <Router>
         <Routes>
           <Route path="/login" element={<Login />} />
-          <Route path="/cadastro" element={<Register />} />
 
           <Route element={<AppLayout />}>
             <Route path="/" element={<Dashboard />} />
             <Route path="/veiculos" element={<Vehicles />} />
             <Route path="/motoristas" element={<Drivers />} />
+            <Route
+              path="/usuarios"
+              element={
+                <AdminOnlyRoute>
+                  <Users />
+                </AdminOnlyRoute>
+              }
+            />
             <Route path="/manutencao" element={<Maintenance />} />
             <Route path="/relatorios" element={<Reports />} />
             <Route path="/chat" element={<Chat />} />

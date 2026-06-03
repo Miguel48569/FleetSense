@@ -43,7 +43,7 @@ export default function Dashboard() {
           value={vehicles.length}
           icon={Truck}
           color="bg-primary"
-          subtitle={`${vehicles.filter((v) => v.status === "ativo").length} ativos`}
+          subtitle={`${vehicles.filter((v) => v.status === "Disponivel").length} ativos`}
         />
         <StatCard
           title="Motoristas"

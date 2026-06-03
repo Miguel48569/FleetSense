@@ -13,10 +13,16 @@ function formatDate(value) {
 }
 
 function getDriverStatus(driver) {
-  return driver?.data_dem ? 'Inativo' : 'Ativo';
+  if (driver?.status) return `${driver.status}`.trim() === 'Inativo' ? 'Inativo' : 'Disponível';
+  return driver?.data_dem ? 'Inativo' : 'Disponível';
 }
 
-export default function DriverTable({ drivers, onDelete, onSelectDriver }) {
+const statusBadgeClass = {
+  Disponível: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+  Inativo: 'border-slate-200 bg-slate-100 text-slate-700',
+};
+
+export default function DriverTable({ drivers, onDelete, onEdit }) {
 
   if (drivers.length === 0) {
     return (
@@ -49,9 +55,8 @@ export default function DriverTable({ drivers, onDelete, onSelectDriver }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {drivers.map((d, index) => {
-              const driverId = d?.cpf ?? d?.cpf_cnpj ?? d?.id;
-              const cpf = driverId || '—';
+            {drivers.map((d) => {
+              const cpf = d.cpf || d.cpf_cnpj || d.id || '—';
               const nome = d.nome || d.name || '—';
               const cnh = d.cnh || '—';
               const dataNasc = formatDate(d.data_nasc || d.dataNascimento || d.birth_date);
@@ -60,7 +65,7 @@ export default function DriverTable({ drivers, onDelete, onSelectDriver }) {
               const email = d.email || '—';
               const status = getDriverStatus(d);
               return (
-                <TableRow key={driverId || index} className="cursor-pointer" onClick={() => onSelectDriver?.(d)}>
+                <TableRow key={cpf}>
                   <TableCell className="font-mono text-xs">{cpf}</TableCell>
                   <TableCell className="font-medium">{nome}</TableCell>
                   <TableCell className="font-mono">{cnh}</TableCell>
@@ -69,36 +74,16 @@ export default function DriverTable({ drivers, onDelete, onSelectDriver }) {
                   <TableCell>{dataDem}</TableCell>
                   <TableCell className="max-w-[220px] truncate">{email}</TableCell>
                   <TableCell>
-                    <Badge variant={status === 'Ativo' ? 'default' : 'secondary'}>
+                    <Badge variant="outline" className={statusBadgeClass[status] || statusBadgeClass['Disponível']}>
                       {status}
                     </Badge>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        aria-label={`Editar motorista ${nome}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onSelectDriver?.(d);
-                        }}
-                      >
-                        <Pencil className="w-4 h-4" />
+                      <Button variant="ghost" size="icon" aria-label={`Editar motorista ${cpf}`} onClick={() => onEdit?.(d)}>
+                        <Pencil className="w-4 h-4 text-slate-600" />
                       </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        aria-label={`Excluir motorista ${nome}`}
-                        disabled={!driverId}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (!driverId) return;
-                          onDelete(driverId);
-                        }}
-                      >
+                      <Button variant="ghost" size="icon" aria-label={`Excluir motorista ${cpf}`} onClick={() => onDelete(cpf)}>
                         <Trash2 className="w-4 h-4 text-destructive" />
                       </Button>
                     </div>
