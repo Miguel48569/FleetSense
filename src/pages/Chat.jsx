@@ -52,9 +52,11 @@ export default function Chat() {
       try {
         const response = await aiApi.welcome();
         const welcomeText =
+          response?.resposta ||
           response?.reply ||
           response?.mensagem ||
           response?.message ||
+          response?.data?.resposta ||
           response?.data?.reply ||
           response?.data?.mensagem ||
           response?.data?.message ||
@@ -122,14 +124,16 @@ export default function Chat() {
   };
 
   const extractAssistantContent = (response) =>
+    response?.data?.resposta ||
     response?.data?.resumo ||
     response?.data?.reply ||
     response?.data?.message ||
     response?.data?.mensagem ||
+    response?.resposta ||
     response?.reply ||
     response?.message ||
     response?.mensagem ||
-    (typeof response === "string" ? response : "");
+    (typeof response === "string" ? response : "NÃ£o foi possÃ­vel ler a resposta do Chat IA.");
 
   const markdownComponents = {
     h1: ({ children }) => <h1 className="mb-3 text-lg font-bold tracking-tight text-slate-900">{children}</h1>,
