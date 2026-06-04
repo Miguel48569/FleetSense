@@ -94,7 +94,7 @@ export default function Drivers() {
         </p>
       </div>
       <DriverForm
-        onSubmit={(data) => createMutation.mutate(data)}
+        onSubmit={(data) => createMutation.mutateAsync(data)}
         isLoading={createMutation.isPending}
       />
       <DriverTable
@@ -114,7 +114,7 @@ export default function Drivers() {
           </DialogHeader>
           <DriverForm
             initialDriver={selectedDriver}
-            onSubmit={(data) => updateMutation.mutate({ cpf: selectedDriver?.cpf || selectedDriver?.id, data })}
+            onSubmit={(data) => updateMutation.mutateAsync({ cpf: selectedDriver?.cpf || selectedDriver?.id, data })}
             isLoading={updateMutation.isPending}
             submitLabel={updateMutation.isPending ? "Salvando..." : "Salvar alterações"}
             onCancel={() => setIsEditModalOpen(false)}

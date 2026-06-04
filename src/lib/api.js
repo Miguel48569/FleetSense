@@ -369,6 +369,14 @@ export const vehiclesApi = {
 // ============================================================
 
 export const driversApi = {
+  onlyDigits: (value) => `${value ?? ""}`.replace(/\D/g, ""),
+
+  formatDriverDate: (value) => {
+    const raw = `${value ?? ""}`.trim();
+    if (!raw) return "";
+    return raw.includes("T") ? raw.slice(0, 10) : raw;
+  },
+
   formatDriverDateTime: (value, allowNull = true) => {
     const raw = `${value ?? ""}`.trim();
     if (!raw) return allowNull ? null : "";
@@ -439,24 +447,16 @@ export const driversApi = {
   create: async (data) => {
     if (isBackendMode()) {
       const payload = {
-        ...data,
-        cpf: data?.cpf ?? data?.id ?? "",
+        cpf: driversApi.onlyDigits(data?.cpf ?? data?.id ?? ""),
         nome: data?.nome ?? data?.name ?? "",
-        cnh: data?.cnh ?? "",
-        data_nasc: driversApi.formatDriverDateTime(data?.data_nasc ?? data?.birth_date ?? data?.dataNascimento ?? "", false).slice(0, 10),
-        data_adm: driversApi.formatDriverDateTime(data?.data_adm ?? data?.admission_date ?? data?.dataAdmissao ?? ""),
-        data_dem: driversApi.formatDriverDateTime(data?.data_dem ?? data?.dismissal_date ?? data?.dataDemissao ?? ""),
+        cnh: driversApi.onlyDigits(data?.cnh ?? ""),
+        data_nasc: driversApi.formatDriverDate(data?.data_nasc ?? data?.birth_date ?? data?.dataNascimento ?? ""),
+        data_adm: driversApi.formatDriverDate(data?.data_adm ?? data?.admission_date ?? data?.dataAdmissao ?? ""),
         email: data?.email ?? "",
         status: data?.status ?? (data?.data_dem ? "Inativo" : "Disponível"),
       };
-      delete payload.id;
-      delete payload.name;
-      delete payload.birth_date;
-      delete payload.admission_date;
-      delete payload.dismissal_date;
-      delete payload.dataNascimento;
-      delete payload.dataAdmissao;
-      delete payload.dataDemissao;
+      const dismissalDate = driversApi.formatDriverDate(data?.data_dem ?? data?.dismissal_date ?? data?.dataDemissao ?? "");
+      if (dismissalDate) payload.data_dem = dismissalDate;
       return apiFetch("POST", "/motoristas", payload);
     }
     throw new Error("Backend não configurado");
@@ -471,13 +471,12 @@ export const driversApi = {
   update: async (id, data) => {
     if (isBackendMode()) {
       const payload = {
-        ...data,
-        cpf: data?.cpf ?? data?.id ?? id,
+        cpf: driversApi.onlyDigits(data?.cpf ?? data?.id ?? id),
         nome: data?.nome ?? data?.name,
-        cnh: data?.cnh,
-        data_nasc: driversApi.formatDriverDateTime(data?.data_nasc ?? data?.birth_date ?? data?.dataNascimento ?? "", false).slice(0, 10),
-        data_adm: driversApi.formatDriverDateTime(data?.data_adm ?? data?.admission_date ?? data?.dataAdmissao ?? ""),
-        data_dem: driversApi.formatDriverDateTime(data?.data_dem ?? data?.dismissal_date ?? data?.dataDemissao ?? ""),
+        cnh: driversApi.onlyDigits(data?.cnh),
+        data_nasc: driversApi.formatDriverDate(data?.data_nasc ?? data?.birth_date ?? data?.dataNascimento ?? ""),
+        data_adm: driversApi.formatDriverDate(data?.data_adm ?? data?.admission_date ?? data?.dataAdmissao ?? ""),
+        data_dem: driversApi.formatDriverDate(data?.data_dem ?? data?.dismissal_date ?? data?.dataDemissao ?? ""),
         email: data?.email,
         status: data?.status ?? (data?.data_dem ? "Inativo" : "Disponível"),
       };
@@ -753,7 +752,7 @@ export const dashboardApi = {
 export const aiApi = {
   welcome: async () => {
     if (!isBackendMode()) throw new Error("Backend não configurado");
-    return apiFetch("GET", "/chat");
+    return { resposta: "Ola! Como posso ajudar com a sua frota hoje?" };
   },
 
   chat: async (message) => {

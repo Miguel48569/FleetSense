@@ -27,7 +27,7 @@ function normalizeFormValue(driver = {}) {
   };
 }
 
-export default function DriverForm({ onSubmit, initialDriver = null, submitLabel = 'Salvar', onCancel }) {
+export default function DriverForm({ onSubmit, initialDriver = null, submitLabel = 'Salvar', onCancel, isLoading = false }) {
   const [form, setForm] = useState({ ...emptyForm });
   const [loading, setLoading] = useState(false);
 
@@ -43,10 +43,15 @@ export default function DriverForm({ onSubmit, initialDriver = null, submitLabel
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    await onSubmit(form);
-    setForm({ ...emptyForm });
-    setLoading(false);
+    try {
+      await onSubmit(form);
+      if (!initialDriver) setForm({ ...emptyForm });
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const saving = loading || isLoading;
 
   return (
     <Card className="border-0 shadow-sm">
@@ -125,7 +130,7 @@ export default function DriverForm({ onSubmit, initialDriver = null, submitLabel
                 Cancelar
               </Button>
             )}
-            <Button type="submit" disabled={loading} className="h-10 w-full md:w-auto lg:col-span-3">
+            <Button type="submit" disabled={saving} className="h-10 w-full md:w-auto lg:col-span-3">
               <Plus className="w-4 h-4 mr-2" />
               {submitLabel}
             </Button>
