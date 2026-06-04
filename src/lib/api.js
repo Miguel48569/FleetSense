@@ -756,11 +756,8 @@ export const aiApi = {
     return apiFetch("GET", "/chat");
   },
 
-  chat: async (message, sessionId = null) => {
+  chat: async (message) => {
     if (!isBackendMode()) throw new Error("Backend não configurado");
-    return apiFetch("POST", "/chat", {
-      mensagem: message,
-      session_id: sessionId ?? undefined,
-    });
+    return apiFetch("POST", "/chat", { mensagem: message });
   },
 };
