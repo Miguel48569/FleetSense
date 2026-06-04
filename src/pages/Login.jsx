@@ -39,7 +39,7 @@ export default function Login() {
       // Envia payload estrito esperado pelo backend: { email, senha }
       await login({ email: formData.email, senha: formData.password });
       toast({ title: "Login realizado", description: "Bem-vindo ao FleetSense." });
-      navigate("/", { replace: true });
+      navigate("/dashboard", { replace: true });
     } catch (error) {
       const message = error?.message || "Não foi possível entrar no sistema.";
       setSubmitError(message);

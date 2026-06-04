@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/AuthContext";
 
 const navItems = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
+  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, end: true },
   { to: "/veiculos", label: "Veículos", icon: Car },
   { to: "/motoristas", label: "Motoristas", icon: Users },
   { to: "/usuarios", label: "Usuários", icon: UserCog, adminOnly: true },

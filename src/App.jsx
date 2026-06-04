@@ -32,7 +32,7 @@ function AdminOnlyRoute({ children }) {
   }
 
   if (user?.cargo !== "administrador") {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   return children;
@@ -69,15 +69,65 @@ function AdminOnlyRoute({ children }) {
 //   return children;
 // }
 
+function AuthenticatedRoute({ children }) {
+  const { isAuthenticated, isLoadingAuth } = useAuth();
+
+  if (isLoadingAuth) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <p className="text-sm text-muted-foreground">Validando autenticacao...</p>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return children;
+}
+
+function PublicOnlyRoute({ children }) {
+  const { isAuthenticated, isLoadingAuth } = useAuth();
+
+  if (isLoadingAuth) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <p className="text-sm text-muted-foreground">Validando autenticacao...</p>
+      </div>
+    );
+  }
+
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return children;
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClientInstance}>
       <Router>
         <Routes>
-          <Route path="/login" element={<Login />} />
+          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route
+            path="/login"
+            element={
+              <PublicOnlyRoute>
+                <Login />
+              </PublicOnlyRoute>
+            }
+          />
 
-          <Route element={<AppLayout />}>
-            <Route path="/" element={<Dashboard />} />
+          <Route
+            element={
+              <AuthenticatedRoute>
+                <AppLayout />
+              </AuthenticatedRoute>
+            }
+          >
+            <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/veiculos" element={<Vehicles />} />
             <Route path="/motoristas" element={<Drivers />} />
             <Route
